@@ -2,7 +2,8 @@
 from importlib import import_module
 
 model_module_dict = {
-                'simple_CNN': 'CNN',
+                'DnCNN_B':  'DnCNN',
+                'CDnCNN_B': 'DnCNN',
                 }
 
 def get_model_object(model_name):

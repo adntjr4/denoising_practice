@@ -9,7 +9,8 @@ from torch.utils.data import DataLoader
 from .output import Output
 from ..model import get_model_object
 from ..loss.loss import Loss
-from ..dataset.custom_dataset import CustomDataSet
+from ..loss.metrics import psnr, ssim
+from ..dataset.denoise_dataset import get_dataset_object
 from ..util.logger import Logger
 from ..util.warmup_scheduler import WarmupLRScheduler
 
@@ -26,6 +27,7 @@ class Trainer(Output):
         
         self.cfg = cfg
 
+    @torch.no_grad()
     def test(self):
         pass
 
@@ -34,29 +36,32 @@ class Trainer(Output):
         self._before_train()
 
         # warmup
-        if self.epoch == 0 and self.cfg['training']['warmup']:
+        if self.epoch == 1 and self.cfg['training']['warmup']:
             self._warmup()
 
         # training
-        for self.epoch in range(self.epoch, self.max_epoch):
+        for self.epoch in range(self.epoch, self.max_epoch+1):
             self._before_epoch()
             self._run_epoch()
             self._after_epoch()
         
         self._after_train()
 
+    @torch.no_grad()
     def validation(self):
-        error_count = 0
+        psnr_value = 0.
+        psnr_count = 0
         for data in self.val_data_loader:
             # to device
             if self.cfg['gpu'] != '-1':
                 for key in data:
                     data[key] = data[key].cuda()
 
-            prediction = self.model(data['img'])
-            error_count += (torch.argmax(prediction, dim=1)!=data['label']).sum().item()
+            denoised_image = self.model(data['syn_noisy'])
+            psnr_value += psnr(denoised_image, data['clean'])
+            psnr_count += 1
         status = ('val %02d '%self.epoch).center(status_len)
-        self.logger.val('[%s] Error : %.2f %%'%(status, error_count*100/self.val_data_set.__len__()))
+        self.logger.val('[%s] PSNR : %.2f dB'%(status, psnr_value/psnr_count))
 
     def _warmup(self):
         self.status = 'warmup'.center(status_len)
@@ -65,7 +70,7 @@ class Trainer(Output):
         warmup_iter = self.cfg['training']['warmup_iter']
         self.warmup_scheduler = WarmupLRScheduler(self.optimizer, warmup_iter)
 
-        for self.iter in range(warmup_iter):
+        for self.iter in range(1, warmup_iter+1):
             self._before_step()
             self._run_step()
             self._after_step()
@@ -73,15 +78,22 @@ class Trainer(Output):
 
     def _before_train(self):
         # initialing
-        self.module = get_model_object(self.cfg['model']['name'])()
+        self.module = get_model_object(self.cfg['model'])()
 
-        self.train_data_set = CustomDataSet(name=self.cfg['training']['dataset'])
-        self.val_data_set   = CustomDataSet(name=self.cfg['validation']['dataset'])
-        self.train_data_loader = DataLoader(dataset=self.train_data_set, batch_size=self.cfg['training']['batch_size'], shuffle=True, num_workers=self.cfg['thread'])
-        self.val_data_loader   = DataLoader(dataset=self.val_data_set, batch_size=self.cfg['validation']['batch_size'], shuffle=False, num_workers=self.cfg['thread'])
+        tr_cfg = self.cfg['training']
+        self.train_data_set = get_dataset_object(tr_cfg['dataset'])(crop_size = tr_cfg['crop_size'], 
+                                                                    add_noise = tr_cfg['add_noise'], 
+                                                                    aug       = tr_cfg['aug'],
+                                                                    n_repeat  = tr_cfg['n_repeat'])
+        val_cfg = self.cfg['validation']
+        self.val_data_set   = get_dataset_object(val_cfg['dataset'])(crop_size = val_cfg['crop_size'], 
+                                                                     add_noise = val_cfg['add_noise'])
+
+        self.train_data_loader = DataLoader(dataset=self.train_data_set, batch_size=tr_cfg['batch_size'], shuffle=True, num_workers=self.cfg['thread'])
+        self.val_data_loader   = DataLoader(dataset=self.val_data_set, batch_size=1, shuffle=False, num_workers=self.cfg['thread'])
 
         self.max_epoch = self.cfg['training']['max_epoch']
-        self.epoch = self.start_epoch = 0
+        self.epoch = self.start_epoch = 1
         self.max_iter = math.ceil(self.train_data_loader.dataset.__len__() / self.cfg['training']['batch_size'])
 
         self.loss = Loss(self.cfg['training']['loss'])
@@ -110,7 +122,7 @@ class Trainer(Output):
             self.model = nn.DataParallel(self.module)
 
         # start message
-        self.logger.start((self.epoch, 0))
+        self.logger.start((self.epoch-1, 0))
         self.logger.info(self.logger.get_start_msg())
 
     def _after_train(self):
@@ -123,7 +135,7 @@ class Trainer(Output):
         self.train_data_loader_iter = iter(self.train_data_loader)
         
     def _run_epoch(self):
-        for self.iter in range(self.max_iter):
+        for self.iter in range(1, self.max_iter+1):
             self._before_step()
             self._run_step()
             self._after_step()
@@ -153,7 +165,7 @@ class Trainer(Output):
                 data[key] = data[key].cuda()
 
         # forward
-        model_output = self.model(data['img'])
+        model_output = self.model(data['syn_noisy'])
 
         # get losses
         losses = self.loss(model_output, data)
@@ -166,21 +178,24 @@ class Trainer(Output):
 
         # save losses
         for key in losses:
-            self.loss_dict[key] += float(losses[key])
+            if key != 'count': self.loss_dict[key] += float(losses[key])
+        self.loss_dict['count'] += 1
 
     def _after_step(self):
         # print loss
-        if self.iter % self.cfg['log']['interval_iter'] == 0:
+        if (self.iter%self.cfg['log']['interval_iter']==0 and self.iter!=0) or (self.iter == self.max_iter):
             self.print_loss()
 
         # print progress
-        self.logger.print_prog_msg((self.epoch, self.iter))
+        self.logger.print_prog_msg((self.epoch-1, self.iter-1))
 
     def print_loss(self):
         loss_out_str = '[%s] %04d/%04d, lr:%s | '%(self.status, self.iter, self.max_iter, "{:.2e}".format(self._get_current_lr()))
-        for loss_name in self.loss_dict:
-            loss_out_str += '%s : %.4f | '%(loss_name, self.loss_dict[loss_name]/self.cfg['log']['interval_iter'])
-            self.loss_dict[loss_name] = 0.
+        for key in self.loss_dict:
+            if key != 'count':
+                loss_out_str += '%s : %.4f | '%(key, self.loss_dict[key]/self.loss_dict['count'])
+                self.loss_dict[key] = 0.
+        self.loss_dict['count'] = 0
         self.logger.info(loss_out_str)
 
     def save_checkpoint(self):
@@ -226,6 +241,6 @@ class Trainer(Output):
         sched = self.cfg['training']['scheduler']
 
         if sched['type'] == 'step':
-            return optim.lr_scheduler.StepLR(optimizer=self.optimizer, step_size=sched['step']['step_size'], gamma=sched['step']['gamma'], last_epoch=self.epoch-1)
+            return optim.lr_scheduler.StepLR(optimizer=self.optimizer, step_size=sched['step']['step_size'], gamma=sched['step']['gamma'], last_epoch=self.epoch-2)
         else:
             raise RuntimeError('ambiguious scheduler type: {}'.format(sched['type']))

@@ -10,8 +10,8 @@ do
    esac
 done
 
-session="default"
-config="default"
+session="DnCNN"
+config="DnCNN"
 
 cd ..
 if [ $resume == "True" ]

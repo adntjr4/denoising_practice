@@ -1,22 +1,24 @@
 
-model:
-  name: simple_CNN
+model: DnCNN_B
 
 training:
-  dataset: MNIST_Train
-
-  max_epoch: 4
-  batch_size: 16
-  crop_size: None # [64, 64]
+  dataset: BSD400
+  add_noise: gau-15. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
+  crop_size: [64, 64]
   aug: None # ['hflip', 'vflip', 'rot']
+  n_repeat: 10
+  
+  batch_size: 16
 
-  init_lr: 1e-4
+  max_epoch: 12
+  
+  init_lr: 1e-3
   scheduler:
     type: step
     step:
-      step_size: 1
+      step_size: 10
       gamma: 0.1
-  loss: 1.*cross_entropy
+  loss: 1.*L2
   optimizer:
     type: SGD
     SGD:
@@ -26,14 +28,17 @@ training:
       betas: [0.9, 0.999]
 
   warmup: True
-  warmup_iter: 1000
+  warmup_iter: 100
 
 validation:
+  dataset: BSD68
+  add_noise: gau-15. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
+  crop_size: None # [64, 64]
+
   val: True
   save_image: True
   save_file: True
-  dataset: MNIST_Test
-  batch_size: 16
+  
   start_epoch: 16
   interval_epoch: 1
   
@@ -43,5 +48,5 @@ checkpoint:
   interval_epoch: 1
 
 log:
-  interval_iter: 500
+  interval_iter: 50
   save_file: True

@@ -1,14 +1,13 @@
-# pytorch starting format
+# Denoising practice
 
-staring project format for pytorch implementation
+Denoising practice
 
-there should be "output" folder or softlink
-also "dataset" folder for dataset files.  
-
-default CNN for MNIST classification is implemented.
+DnCNN
 
 ## TODO list
 
+- [ ] Add dataset module
+- [ ] Add more network
 - [ ] Use "start_epoch" and "interval_epoch"
 - [ ] Add test code
 - [ ] Add validation image out

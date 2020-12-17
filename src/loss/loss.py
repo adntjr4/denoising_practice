@@ -15,8 +15,6 @@ class Loss(nn.Module):
                 loss_function = nn.L1Loss(reduction='mean')
             elif name == 'L2':
                 loss_function = nn.MSELoss(reduction='mean')
-            elif name == 'cross_entropy':
-                loss_function = nn.CrossEntropyLoss()
             else:
                 raise RuntimeError('ambiguious loss term: {}'.format(name))
         
@@ -29,15 +27,14 @@ class Loss(nn.Module):
         for single_loss in self.loss_list:
             name = single_loss['name']
             if name == 'L1':
-                raise RuntimeError('not used in this project')
+                losses[name] = single_loss['weight'] * single_loss['func'](model_output, data['clean'])
             elif name == 'L2':
-                raise RuntimeError('not used in this project')
-            elif name == 'cross_entropy':
-                losses[name] = single_loss['weight'] * single_loss['func'](model_output, data['label'])
+                losses[name] = single_loss['weight'] * single_loss['func'](model_output, data['clean'])
         return losses
 
     def get_loss_dict_form(self):
         loss_dict = {}
+        loss_dict['count'] = 0
         for single_loss in self.loss_list:
             loss_dict[single_loss['name']] = 0.
         return loss_dict

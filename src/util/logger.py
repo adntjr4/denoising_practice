@@ -6,7 +6,7 @@ from .progress_msg import ProgressMsg
 
 
 class Logger(ProgressMsg):
-    def __init__(self, max_iter:tuple, log_dir:str=None, log_lvl:str='info', log_file_lvl:str='debug', log_include_time:bool=False):
+    def __init__(self, max_iter:tuple, log_dir:str=None, log_lvl:str='info', log_file_lvl:str='debug', log_include_time:bool=True):
         '''
         Args:
             session_name (str)
@@ -36,6 +36,7 @@ class Logger(ProgressMsg):
             self.val_file = open(os.path.join(log_dir, 'validation.log'), 'w')
 
     def debug(self, txt):
+        txt = str(txt)
         lvl_n = self.lvl_list.index('debug')
         if self.log_lvl <= lvl_n:
             if self.lvl_color[lvl_n] is not None:
@@ -46,6 +47,7 @@ class Logger(ProgressMsg):
             self.write_file(txt)
 
     def info(self, txt):
+        txt = str(txt)
         lvl_n = self.lvl_list.index('info')
         if self.log_lvl <= lvl_n:
             if self.lvl_color[lvl_n] is not None:
@@ -56,6 +58,7 @@ class Logger(ProgressMsg):
             self.write_file(txt)
 
     def warning(self, txt):
+        txt = str(txt)
         lvl_n = self.lvl_list.index('warning')
         if self.log_lvl <= lvl_n:
             if self.lvl_color[lvl_n] is not None:
@@ -66,6 +69,7 @@ class Logger(ProgressMsg):
             self.write_file(txt)
 
     def val(self, txt):
+        txt = str(txt)
         lvl_n = self.lvl_list.index('val')
         if self.log_lvl <= lvl_n:
             if self.lvl_color[lvl_n] is not None:

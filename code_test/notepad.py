@@ -1,4 +1,6 @@
+import torch
 
-t = '1.:2.'
 
-print([float(v) for v in t.split(':')])
+t = torch.zeros((2,2,2,3))
+
+print('%s %s'%(t.shape,'aa'))

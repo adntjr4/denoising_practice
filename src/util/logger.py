@@ -6,7 +6,7 @@ from .progress_msg import ProgressMsg
 
 
 class Logger(ProgressMsg):
-    def __init__(self, max_iter:tuple, log_dir:str=None, log_lvl:str='info', log_file_lvl:str='debug', log_include_time:bool=True):
+    def __init__(self, max_iter:tuple, log_dir:str=None, log_lvl:str='debug', log_file_lvl:str='debug', log_include_time:bool=True):
         '''
         Args:
             session_name (str)
@@ -15,8 +15,8 @@ class Logger(ProgressMsg):
             log_lvl (str) : 'debug' < 'info' < 'warning'
             log_include_time (bool)
         '''
-        self.lvl_list = ['debug', 'info', 'warning', 'val']
-        self.lvl_color = [bcolors.OKCYAN, None, bcolors.WARNING, bcolors.FAIL]
+        self.lvl_list = ['debug', 'info', 'highlight', 'val']
+        self.lvl_color = [bcolors.OKCYAN, None, bcolors.WARNING, bcolors.OKGREEN]
 
         assert log_lvl in self.lvl_list
         assert log_file_lvl in self.lvl_list
@@ -57,9 +57,9 @@ class Logger(ProgressMsg):
         if self.log_file_lvl <= lvl_n:
             self.write_file(txt)
 
-    def warning(self, txt):
+    def highlight(self, txt):
         txt = str(txt)
-        lvl_n = self.lvl_list.index('warning')
+        lvl_n = self.lvl_list.index('highlight')
         if self.log_lvl <= lvl_n:
             if self.lvl_color[lvl_n] is not None:
                 print('\033[K'+ self.lvl_color[lvl_n] + txt + bcolors.ENDC)

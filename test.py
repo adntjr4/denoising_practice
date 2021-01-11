@@ -17,7 +17,7 @@ def main():
 
     args = args.parse_args()
 
-    assert args.session is not None, 'session name required'
+    assert args.session_name is not None, 'session name is required'
     assert args.config is not None, 'config file path is needed'
 
     cfg = ConfigParser(args)

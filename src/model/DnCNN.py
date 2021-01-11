@@ -44,7 +44,7 @@ class CDnCNN_B(DnCNN):
 
 class DnCNN_B(DnCNN):
     def __init__(self):
-        super().__init__(n_layer=20)
+        super().__init__(n_in_ch=1, n_out_ch=1, n_layer=20)
 
 
 if __name__ == "__main__":

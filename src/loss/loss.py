@@ -11,9 +11,9 @@ class Loss(nn.Module):
         for single_loss in loss_string.split('+'):
             weight, name = single_loss.split('*')
 
-            if name == 'L1':
+            if name == 'L1' or name == 'self_L1':
                 loss_function = nn.L1Loss(reduction='mean')
-            elif name == 'L2':
+            elif name == 'L2' or name == 'self_L2':
                 loss_function = nn.MSELoss(reduction='mean')
             else:
                 raise RuntimeError('ambiguious loss term: {}'.format(name))
@@ -30,6 +30,12 @@ class Loss(nn.Module):
                 losses[name] = single_loss['weight'] * single_loss['func'](model_output, data['clean'])
             elif name == 'L2':
                 losses[name] = single_loss['weight'] * single_loss['func'](model_output, data['clean'])
+            elif name == 'self_L1':
+                self_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
+                losses[name] = single_loss['weight'] * single_loss['func'](model_output, self_noisy)
+            elif name == 'self_L2':
+                self_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
+                losses[name] = single_loss['weight'] * single_loss['func'](model_output, self_noisy)
         return losses
 
     def get_loss_dict_form(self):

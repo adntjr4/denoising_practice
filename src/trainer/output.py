@@ -7,16 +7,14 @@ class Output:
 
         # init session
         self.session_name = session_name
-        if not os.path.isdir(os.path.join(self.output_folder, self.session_name)):
-            os.mkdir(os.path.join(self.output_folder, self.session_name))
+        os.makedirs(os.path.join(self.output_folder, self.session_name), exist_ok=True)
 
         # mkdir
         for directory in dir_list:
             self.make_dir(directory)
 
     def make_dir(self, dir_name):
-        if not os.path.isdir(os.path.join(self.output_folder, self.session_name, dir_name)):
-            os.mkdir(os.path.join(self.output_folder, self.session_name, dir_name))
+        os.makedirs(os.path.join(self.output_folder, self.session_name, dir_name), exist_ok=True)
 
     def get_dir(self, dir_name):
         # return ./output/<session_name>/dir_name

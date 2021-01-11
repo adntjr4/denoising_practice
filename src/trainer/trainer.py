@@ -1,6 +1,7 @@
 import os, math
 from importlib import import_module
 
+import cv2
 import torch
 from torch import nn
 from torch import optim
@@ -13,6 +14,7 @@ from ..loss.metrics import psnr, ssim
 from ..dataset.denoise_dataset import get_dataset_object
 from ..util.logger import Logger
 from ..util.warmup_scheduler import WarmupLRScheduler
+from ..util.util import tensor2np
 
 status_len = 13
 
@@ -26,17 +28,20 @@ class Trainer(Output):
         super().__init__(self.session_name, dir_list)
         
         self.cfg = cfg
+        self.train_cfg = cfg['training']
+        self.val_cfg   = cfg['validation']
+
 
     @torch.no_grad()
     def test(self):
-        pass
+        raise NotImplementedError('TODO')
 
     def train(self):
         # initializing
         self._before_train()
 
         # warmup
-        if self.epoch == 1 and self.cfg['training']['warmup']:
+        if self.epoch == 1 and self.train_cfg['warmup']:
             self._warmup()
 
         # training
@@ -49,25 +54,62 @@ class Trainer(Output):
 
     @torch.no_grad()
     def validation(self):
-        psnr_value = 0.
+        # evaluation mode
+        self.model.eval()
+
+        # make directories for image saving
+        if self.val_cfg['save_image']:
+            img_save_path = self.get_dir('img/val_%03d'%self.epoch)
+            os.makedirs(img_save_path, exist_ok=True)
+
+        # validation
+        psnr_sum = 0.
         psnr_count = 0
-        for data in self.val_data_loader:
+        for idx, data in enumerate(self.val_data_loader):
             # to device
-            if self.cfg['gpu'] != '-1':
+            if self.cfg['gpu'] != 'None':
                 for key in data:
                     data[key] = data[key].cuda()
 
-            denoised_image = self.model(data['syn_noisy'])
-            psnr_value += psnr(denoised_image, data['clean'])
-            psnr_count += 1
-        status = ('val %02d '%self.epoch).center(status_len)
-        self.logger.val('[%s] PSNR : %.2f dB'%(status, psnr_value/psnr_count))
+            # forward
+            denoised_image = self.model(data[self.cfg['model_input']])
+            
+            # evaluation
+            if 'clean' in data:
+                psnr_value = psnr(denoised_image, data['clean'])
+                psnr_sum += psnr_value
+                psnr_count += 1
+
+            # image save
+            if self.val_cfg['save_image']:
+                # to cpu
+                if 'clean' in data:
+                    clean_img = data['clean'].squeeze().cpu()
+                noisy_img = data[self.cfg['model_input']].squeeze().cpu()
+                denoi_img = denoised_image.squeeze().cpu()
+
+                # imwrite
+                if 'clean' in data:
+                    cv2.imwrite(os.path.join(img_save_path, '%04d_CL.png'%idx), tensor2np(clean_img))
+                cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), tensor2np(noisy_img))
+                cv2.imwrite(os.path.join(img_save_path, '%04d_DN.png'%idx), tensor2np(denoi_img))
+
+        # info 
+        status = ('  val %03d '%self.epoch).ljust(status_len) #.center(status_len)
+        if 'clean' in data:
+            self.logger.val('[%s] Done! PSNR : %.2f dB'%(status, psnr_sum/psnr_count))
+        else:
+            self.logger.val('[%s] Done!')
 
     def _warmup(self):
-        self.status = 'warmup'.center(status_len)
-        self.train_data_loader_iter = iter(self.train_data_loader)
+        self.status = 'warmup'.ljust(status_len) #.center(status_len)
 
-        warmup_iter = self.cfg['training']['warmup_iter']
+        self.train_data_loader_iter = iter(self.train_data_loader)
+        warmup_iter = self.train_cfg['warmup_iter']
+        if warmup_iter > self.train_data_loader.__len__():
+            self.logger.info('currently warmup support 1 epoch as maximum. warmup iter is replaced to 1 epoch iteration. %d -> %d' \
+                % (warmup_iter, self.train_data_loader.__len__()))
+            warmup_iter = self.train_data_loader.__len__()
         self.warmup_scheduler = WarmupLRScheduler(self.optimizer, warmup_iter)
 
         for self.iter in range(1, warmup_iter+1):
@@ -80,25 +122,30 @@ class Trainer(Output):
         # initialing
         self.module = get_model_object(self.cfg['model'])()
 
-        tr_cfg = self.cfg['training']
-        self.train_data_set = get_dataset_object(tr_cfg['dataset'])(crop_size = tr_cfg['crop_size'], 
-                                                                    add_noise = tr_cfg['add_noise'], 
-                                                                    aug       = tr_cfg['aug'],
-                                                                    n_repeat  = tr_cfg['n_repeat'])
-        val_cfg = self.cfg['validation']
-        self.val_data_set   = get_dataset_object(val_cfg['dataset'])(crop_size = val_cfg['crop_size'], 
-                                                                     add_noise = val_cfg['add_noise'])
+        # training dataset loader
+        self.train_data_set = get_dataset_object(self.train_cfg['dataset'])(crop_size = self.train_cfg['crop_size'], 
+                                                                            add_noise = self.train_cfg['add_noise'], 
+                                                                            mask      = self.train_cfg['mask'],
+                                                                            aug       = self.train_cfg['aug'],
+                                                                            n_repeat  = self.train_cfg['n_repeat'])
+        self.train_data_loader = DataLoader(dataset=self.train_data_set, batch_size=self.train_cfg['batch_size'], shuffle=True, num_workers=self.cfg['thread'])
 
-        self.train_data_loader = DataLoader(dataset=self.train_data_set, batch_size=tr_cfg['batch_size'], shuffle=True, num_workers=self.cfg['thread'])
-        self.val_data_loader   = DataLoader(dataset=self.val_data_set, batch_size=1, shuffle=False, num_workers=self.cfg['thread'])
+        # validation dataset loader
+        if self.val_cfg['val']:
+            self.val_data_set = get_dataset_object(self.val_cfg['dataset'])(crop_size = self.val_cfg['crop_size'], 
+                                                                            add_noise = self.val_cfg['add_noise'],
+                                                                            mask      = self.val_cfg['mask'],)
+            self.val_data_loader   = DataLoader(dataset=self.val_data_set, batch_size=1, shuffle=False, num_workers=self.cfg['thread'])
 
-        self.max_epoch = self.cfg['training']['max_epoch']
+        # other configuration
+        self.max_epoch = self.train_cfg['max_epoch']
         self.epoch = self.start_epoch = 1
-        self.max_iter = math.ceil(self.train_data_loader.dataset.__len__() / self.cfg['training']['batch_size'])
+        self.max_iter = math.ceil(self.train_data_loader.dataset.__len__() / self.train_cfg['batch_size'])
 
-        self.loss = Loss(self.cfg['training']['loss'])
+        self.loss = Loss(self.train_cfg['loss'])
         self.loss_dict = self.loss.get_loss_dict_form()
         
+        # logger initialization
         self.logger = Logger((self.max_epoch, self.max_iter), log_dir=self.get_dir(''))
 
         # resume
@@ -115,7 +162,7 @@ class Trainer(Output):
         self.scheduler = self._set_scheduler()
 
         # cuda
-        if self.cfg['gpu'] != '-1':
+        if self.cfg['gpu'] != 'None':
             os.environ['CUDA_VISIBLE_DEVICES'] = self.cfg['gpu']
             self.model = nn.DataParallel(self.module).cuda()
         else:
@@ -123,16 +170,21 @@ class Trainer(Output):
 
         # start message
         self.logger.start((self.epoch-1, 0))
-        self.logger.info(self.logger.get_start_msg())
+        self.logger.highlight(self.logger.get_start_msg())
 
     def _after_train(self):
         # finish message
-        self.logger.info(self.logger.get_finish_msg())
+        self.logger.highlight(self.logger.get_finish_msg())
 
     def _before_epoch(self):
-        self.status = ('epoch %02d/%02d'%(self.epoch, self.max_epoch)).center(status_len)
+        self.status = ('epoch %03d/%03d'%(self.epoch, self.max_epoch)).center(status_len)
 
+        # dataloader iter
         self.train_data_loader_iter = iter(self.train_data_loader)
+
+        # model training mode
+        self.model.train()
+
         
     def _run_epoch(self):
         for self.iter in range(1, self.max_iter+1):
@@ -148,8 +200,8 @@ class Trainer(Output):
         self.save_checkpoint()
 
         # validation
-        if self.cfg['validation']['val']:
-            if self.epoch % self.cfg['validation']['interval_epoch'] == 0:
+        if self.epoch >= self.val_cfg['start_epoch'] and self.val_cfg['val']:
+            if self.epoch % self.val_cfg['interval_epoch'] == 0:
                 self.validation()
 
     def _before_step(self):
@@ -160,12 +212,12 @@ class Trainer(Output):
         data = next(self.train_data_loader_iter)
 
         # to device
-        if self.cfg['gpu'] != '-1':
+        if self.cfg['gpu'] != 'None':
             for key in data:
                 data[key] = data[key].cuda()
 
         # forward
-        model_output = self.model(data['syn_noisy'])
+        model_output = self.model(data[self.cfg['model_input']])
 
         # get losses
         losses = self.loss(model_output, data)
@@ -188,6 +240,8 @@ class Trainer(Output):
 
         # print progress
         self.logger.print_prog_msg((self.epoch-1, self.iter-1))
+
+
 
     def print_loss(self):
         loss_out_str = '[%s] %04d/%04d, lr:%s | '%(self.status, self.iter, self.max_iter, "{:.2e}".format(self._get_current_lr()))
@@ -213,6 +267,8 @@ class Trainer(Output):
         self.model.module.load_state_dict(saved_checkpoint['model_weight'])
         self.optimizer = saved_checkpoint['optimizer']
 
+
+
     def _checkpoint_name(self, epoch):
         return self.session_name + '_%03d'%self.epoch + '.pth'
 
@@ -227,8 +283,8 @@ class Trainer(Output):
             return param_group['lr']
 
     def _set_optimizer(self, parameters):
-        opt = self.cfg['training']['optimizer']
-        lr = float(self.cfg['training']['init_lr'])
+        opt = self.train_cfg['optimizer']
+        lr = float(self.train_cfg['init_lr'])
 
         if opt['type'] == 'SGD':
             return optim.SGD(parameters, lr=lr, momentum=float(opt['SGD']['momentum']), weight_decay=float(opt['SGD']['weight_decay']))
@@ -238,7 +294,7 @@ class Trainer(Output):
             raise RuntimeError('ambiguious optimizer type: {}'.format(opt['type']))
 
     def _set_scheduler(self):
-        sched = self.cfg['training']['scheduler']
+        sched = self.train_cfg['scheduler']
 
         if sched['type'] == 'step':
             return optim.lr_scheduler.StepLR(optimizer=self.optimizer, step_size=sched['step']['step_size'], gamma=sched['step']['gamma'], last_epoch=self.epoch-2)

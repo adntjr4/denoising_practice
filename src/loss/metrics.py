@@ -6,6 +6,7 @@ from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 def psnr(true_img, test_img):
     '''
     image value range : [0 - 255]
+    clipping for model output
     '''
     # tensor to numpy
     if isinstance(true_img, torch.Tensor):
@@ -22,6 +23,7 @@ def psnr(true_img, test_img):
 def ssim(img1, img2, **kargs):
     '''
     image value range : [0 - 255]
+    clipping for model output
     '''
     # tensor to numpy
     if isinstance(img1, torch.Tensor):

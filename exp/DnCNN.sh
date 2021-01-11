@@ -1,5 +1,4 @@
 resume="False"
-gpu_id="0"
 n_thread="4"
 while getopts g:t:r: opt
 do

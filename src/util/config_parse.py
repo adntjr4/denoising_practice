@@ -11,8 +11,18 @@ class ConfigParser:
         for arg in args.__dict__:
             self.config[arg] = args.__dict__[arg]
 
+        # string None handing
+        self.convert_None(self.config)
+
     def __getitem__(self, name):
         return self.config[name]
+
+    def convert_None(self, d):
+        for key in d:
+            if d[key] == 'None':
+                d[key] = None
+            if isinstance(d[key], dict):
+                self.convert_None(d[key])
 
 if __name__ == "__main__":
     import argparse

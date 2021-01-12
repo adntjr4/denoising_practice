@@ -11,7 +11,7 @@ from .output import Output
 from ..model import get_model_object
 from ..loss.loss import Loss
 from ..loss.metrics import psnr, ssim
-from ..dataset.denoise_dataset import get_dataset_object
+from ..datahandler.denoise_dataset import get_dataset_object
 from ..util.logger import Logger
 from ..util.warmup_scheduler import WarmupLRScheduler
 from ..util.util import tensor2np
@@ -30,7 +30,7 @@ class Trainer(Output):
         self.cfg = cfg
         self.train_cfg = cfg['training']
         self.val_cfg   = cfg['validation']
-
+        self.ckpt_cfg  = cfg['checkpoint']
 
     @torch.no_grad()
     def test(self):
@@ -197,12 +197,15 @@ class Trainer(Output):
         self.scheduler.step()
 
         # save checkpoint
-        self.save_checkpoint()
+        if self.epoch >= self.ckpt_cfg['start_epoch']:
+            if (self.epoch-self.ckpt_cfg['start_epoch'])%self.ckpt_cfg['interval_epoch'] == 0:
+                self.save_checkpoint()
 
         # validation
-        if self.epoch >= self.val_cfg['start_epoch'] and self.val_cfg['val']:
-            if self.epoch % self.val_cfg['interval_epoch'] == 0:
-                self.validation()
+        if self.val_cfg['val']:
+            if self.epoch >= self.val_cfg['start_epoch'] and self.val_cfg['val']:
+                if (self.epoch-self.val_cfg['start_epoch']) % self.val_cfg['interval_epoch'] == 0:
+                    self.validation()
 
     def _before_step(self):
         pass

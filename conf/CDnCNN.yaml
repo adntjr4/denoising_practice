@@ -7,9 +7,9 @@ training:
   dataset: CBSD432
   add_noise: gau-15. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: None # e.g.) None bypass stf_64-rnd
-  crop_size: [64, 64]
-  aug: None # ['hflip', 'vflip', 'rot']
-  n_repeat: 1
+  crop_size: [96, 96]
+  aug: ['hflip', 'rot']
+  n_repeat: 10
   
   batch_size: 16
 
@@ -42,7 +42,7 @@ validation:
   val: True
   save_image: True
   
-  start_epoch: 16
+  start_epoch: 20
   interval_epoch: 1
   
 checkpoint:

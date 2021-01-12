@@ -22,6 +22,23 @@ class DnCNN(nn.Module):
         n = self.model(x)
         return x-n
 
+    def _initialize_weights(self):
+        # Liyong version
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                # n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, (2 / (9.0 * 64)) ** 0.5)
+            if isinstance(m, nn.BatchNorm2d):
+                m.weight.data.normal_(0, (2 / (9.0 * 64)) ** 0.5)
+                clip_b = 0.025
+                w = m.weight.data.shape[0]
+                for j in range(w):
+                    if m.weight.data[j] >= 0 and m.weight.data[j] < clip_b:
+                        m.weight.data[j] = clip_b
+                    elif m.weight.data[j] > -clip_b and m.weight.data[j] < 0:
+                        m.weight.data[j] = -clip_b
+                m.running_var.fill_(0.01)
+
 class Block(nn.Module):
     def __init__(self, n_in_ch, n_out_ch, bn, act, bias):
         super().__init__()
@@ -31,7 +48,7 @@ class Block(nn.Module):
         if act == 'ReLU':
             model.append(nn.ReLU(inplace=True))
         elif act is not None:
-            raise RuntimeError('Wrong activation function %s'%act)
+            raise RuntimeError('undefined activation function %s'%act)
 
         self.model = nn.Sequential(*model)
 

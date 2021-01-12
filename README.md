@@ -10,6 +10,6 @@ DnCNN
 - [ ] Add more network
 - [ ] Use "start_epoch" and "interval_epoch"
 - [ ] Add test code
-- [ ] Add validation image out
+- [x] Add validation image out
 - [ ] Add tensor board output
 

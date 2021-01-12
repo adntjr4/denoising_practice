@@ -1,6 +1,4 @@
-import torch
+t = {'a':4, 'b':5}
 
-
-t = torch.zeros((2,2,2,3))
-
-print('%s %s'%(t.shape,'aa'))
+for a in t:
+    print(a)

@@ -28,7 +28,7 @@ def get_dataset_object(dataset_name):
     elif len(dataset_name.split('+')) > 1:
         raise NotImplementedError
     else:
-        module_dset = import_module('src.dataset.{}'.format(dataset_module[dataset_name]))
+        module_dset = import_module('src.datahandler.{}'.format(dataset_module[dataset_name]))
         return getattr(module_dset, dataset_name)
     
 class DenoiseDataSet(Dataset):

@@ -1,4 +1,5 @@
-t = {'a':4, 'b':5}
+import torch.nn as nn
 
-for a in t:
-    print(a)
+m = nn.Conv2d(16, 33, 3, stride=2)
+
+print(type(m.kernel_size[0]))

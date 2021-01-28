@@ -17,25 +17,20 @@ class Loss(nn.Module):
                 loss_function = nn.MSELoss(reduction='mean')
             else:
                 raise RuntimeError('ambiguious loss term: {}'.format(name))
-        
+
             self.loss_list.append({'name': name,
                                    'weight': float(weight),
                                    'func': loss_function})
-
+            
     def forward(self, model_output, data):
         losses = {}
         for single_loss in self.loss_list:
             name = single_loss['name']
-            if name == 'L1':
+            if name == 'L1' or name == 'L2':
                 losses[name] = single_loss['weight'] * single_loss['func'](model_output, data['clean'])
-            elif name == 'L2':
-                losses[name] = single_loss['weight'] * single_loss['func'](model_output, data['clean'])
-            elif name == 'self_L1':
+            elif name == 'self_L1' or name == 'self_L2':
                 self_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
-                losses[name] = single_loss['weight'] * single_loss['func'](model_output, self_noisy)
-            elif name == 'self_L2':
-                self_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
-                losses[name] = single_loss['weight'] * single_loss['func'](model_output, self_noisy)
+                losses[name] = single_loss['weight'] * single_loss['func'](model_output * data['mask'], self_noisy * data['mask'])
         return losses
 
     def get_loss_dict_form(self):

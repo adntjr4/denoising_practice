@@ -16,7 +16,7 @@ class Logger(ProgressMsg):
             log_include_time (bool)
         '''
         self.lvl_list = ['debug', 'info', 'highlight', 'val']
-        self.lvl_color = [bcolors.OKCYAN, None, bcolors.WARNING, bcolors.OKGREEN]
+        self.lvl_color = [bcolors.FAIL, None, bcolors.WARNING, bcolors.OKGREEN]
 
         assert log_lvl in self.lvl_list
         assert log_file_lvl in self.lvl_list

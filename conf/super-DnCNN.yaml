@@ -1,14 +1,15 @@
 
-model: CDnCNN_B
+model: DnCNN_B
 
 model_input: syn_noisy # e.g.) real_noisy, syn_noisy, masked, clean
 
 training:
-  dataset: CBSD432
+  dataset: BSD400
   add_noise: gau-15. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: None # e.g.) None bypass stf_64-rnd
   crop_size: [96, 96]
   aug: ['hflip', 'rot']
+  normalization: True
   n_repeat: 10
   
   batch_size: 16
@@ -34,10 +35,11 @@ training:
   warmup_iter: 100
 
 validation:
-  dataset: CBSD68
-  add_noise: gau-15. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
-  mask: None # e.g.) None stf-64_rnd
+  dataset: BSD68
   crop_size: None # [64, 64]
+  add_noise: gau-15. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
+  mask: None # e.g.) None bypass stf_64-rnd
+  normalization: True
 
   val: True
   save_image: True

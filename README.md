@@ -10,8 +10,10 @@ My custom repository for Denoising task
 
 - [ ] Add more dataset module
 - [ ] Add more network
-- [x] Use "start_epoch" and "interval_epoch"
 - [ ] Add test code
-- [x] Add validation image out
+- [ ] Add summary printing module
 - [ ] Add tensor board output
-- [ ] Add training process for self-supervised manner
+
+- [x] Use "start_epoch" and "interval_epoch"
+- [x] Add validation image out
+- [x] Add training process for self-supervised manner

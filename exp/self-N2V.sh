@@ -1,6 +1,6 @@
 resume="False"
 n_thread="4"
-while getopts g:t:r: opt
+while getopts g:t:r opt
 do
    case "$opt" in
       g) gpu_id="$OPTARG";;
@@ -9,8 +9,12 @@ do
    esac
 done
 
-session="CDnCNN"
-config="CDnCNN"
+##### Setting #####
+
+session="self-N2V_base_DnCNN"
+config="self-N2V"
+
+###################
 
 cd ..
 if [ $resume == "True" ]

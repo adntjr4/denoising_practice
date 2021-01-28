@@ -2,6 +2,7 @@ import os, math
 from importlib import import_module
 
 import cv2
+import numpy as np
 import torch
 from torch import nn
 from torch import optim
@@ -73,6 +74,11 @@ class Trainer(Output):
 
             # forward
             denoised_image = self.model(data[self.cfg['model_input']])
+
+            # inverse normalize dataset (if normalization is on)
+            if self.val_cfg['normalization']:
+                denoised_image = self.val_data_set.inverse_normalize(denoised_image, self.cfg['gpu'] != 'None')
+                data = self.val_data_set.inverse_normalize_data(data, self.cfg['gpu'] != 'None')
             
             # evaluation
             if 'clean' in data:
@@ -123,18 +129,24 @@ class Trainer(Output):
         self.module = get_model_object(self.cfg['model'])()
 
         # training dataset loader
+        train_other_args = self._set_other_args(self.train_cfg)
         self.train_data_set = get_dataset_object(self.train_cfg['dataset'])(crop_size = self.train_cfg['crop_size'], 
                                                                             add_noise = self.train_cfg['add_noise'], 
                                                                             mask      = self.train_cfg['mask'],
                                                                             aug       = self.train_cfg['aug'],
-                                                                            n_repeat  = self.train_cfg['n_repeat'])
+                                                                            norm      = self.train_cfg['normalization'],
+                                                                            n_repeat  = self.train_cfg['n_repeat'],
+                                                                            **train_other_args,)
         self.train_data_loader = DataLoader(dataset=self.train_data_set, batch_size=self.train_cfg['batch_size'], shuffle=True, num_workers=self.cfg['thread'])
 
         # validation dataset loader
         if self.val_cfg['val']:
+            val_other_args = self._set_other_args(self.val_cfg)
             self.val_data_set = get_dataset_object(self.val_cfg['dataset'])(crop_size = self.val_cfg['crop_size'], 
                                                                             add_noise = self.val_cfg['add_noise'],
-                                                                            mask      = self.val_cfg['mask'],)
+                                                                            mask      = self.val_cfg['mask'],
+                                                                            norm      = self.val_cfg['normalization'],
+                                                                            **val_other_args,)
             self.val_data_loader   = DataLoader(dataset=self.val_data_set, batch_size=1, shuffle=False, num_workers=self.cfg['thread'])
 
         # other configuration
@@ -144,6 +156,7 @@ class Trainer(Output):
 
         self.loss = Loss(self.train_cfg['loss'])
         self.loss_dict = self.loss.get_loss_dict_form()
+        self.loss_log = []
         
         # logger initialization
         self.logger = Logger((self.max_epoch, self.max_iter), log_dir=self.get_dir(''))
@@ -163,8 +176,8 @@ class Trainer(Output):
 
         # cuda
         if self.cfg['gpu'] != 'None':
-            os.environ['CUDA_VISIBLE_DEVICES'] = self.cfg['gpu']
             self.model = nn.DataParallel(self.module).cuda()
+            self.loss = self.loss.cuda()
         else:
             self.model = nn.DataParallel(self.module)
 
@@ -247,7 +260,16 @@ class Trainer(Output):
 
 
     def print_loss(self):
+        temperal_loss = 0.
+        for key in self.loss_dict:
+            if key != 'count':
+                    temperal_loss += self.loss_dict[key]/self.loss_dict['count']
+        self.loss_log += [temperal_loss]
+
         loss_out_str = '[%s] %04d/%04d, lr:%s | '%(self.status, self.iter, self.max_iter, "{:.2e}".format(self._get_current_lr()))
+
+        loss_out_str += 'avg_loss : %.4f | '%(np.mean(self.loss_log))
+
         for key in self.loss_dict:
             if key != 'count':
                 loss_out_str += '%s : %.4f | '%(key, self.loss_dict[key]/self.loss_dict['count'])
@@ -259,7 +281,8 @@ class Trainer(Output):
         checkpoint_name = self._checkpoint_name(self.epoch)
         torch.save({'epoch': self.epoch,
                     'model_weight': self.model.module.state_dict(),
-                    'optimizer': self.optimizer},
+                    'optimizer': self.optimizer,
+                    'scheduler': self.scheduler},
                     os.path.join(self.get_dir(self.checkpoint_folder), checkpoint_name))
 
     def load_checkpoint(self, load_epoch):
@@ -267,8 +290,9 @@ class Trainer(Output):
         assert os.path.isfile(file_name), 'there is no checkpoint: %s'%file_name
         saved_checkpoint = torch.load(file_name)
         self.epoch = saved_checkpoint['epoch']
-        self.model.module.load_state_dict(saved_checkpoint['model_weight'])
+        self.module.load_state_dict(saved_checkpoint['model_weight'])
         self.optimizer = saved_checkpoint['optimizer']
+        self.scheduler = saved_checkpoint['schedular']
 
 
 
@@ -277,7 +301,7 @@ class Trainer(Output):
 
     def _find_last_epoch(self):
         checkpoint_list = os.listdir(self.get_dir(self.checkpoint_folder))
-        epochs = [int(ckpt.replace('%s'%self.session_name, '').replace('.pth', '')) for ckpt in checkpoint_list]
+        epochs = [int(ckpt.replace('%s_'%self.session_name, '').replace('.pth', '')) for ckpt in checkpoint_list]
         assert len(epochs) > 0, 'There is no resumable checkpoint on session %s.'%self.session_name
         return max(epochs)
 
@@ -303,3 +327,11 @@ class Trainer(Output):
             return optim.lr_scheduler.StepLR(optimizer=self.optimizer, step_size=sched['step']['step_size'], gamma=sched['step']['gamma'], last_epoch=self.epoch-2)
         else:
             raise RuntimeError('ambiguious scheduler type: {}'.format(sched['type']))
+
+    def _set_other_args(self, cfg):
+        other_args = {}
+        if 'power_cliping' in cfg:
+            other_args['power_cliping'] = cfg['power_cliping']
+        if 'keep_on_mem' in cfg:
+            other_args['keep_on_mem'] = cfg['keep_on_mem']
+        return other_args

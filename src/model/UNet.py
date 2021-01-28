@@ -82,6 +82,15 @@ class UNet_Block(nn.Module):
         return x
 
 class N2V_UNet(nn.Module):
+    def __init__(self, n_depth=2, n_ch_in=1, n_base_ch=16, n_conv_per_depth=16, n_pooling=2, bn=True):
+        super().__init__()
+        modules = [UNet_Block(n_depth, n_ch_in, n_base_ch, n_conv_per_depth, n_pooling, bn), nn.Conv2d(n_base_ch, n_ch_in, kernel_size=3, padding=1)]
+        self.model = nn.Sequential(*modules)
+
+    def forward(self, x):
+        return x + self.model(x)
+
+class C_N2V_UNet(nn.Module):
     def __init__(self, n_depth=2, n_ch_in=3, n_base_ch=16, n_conv_per_depth=16, n_pooling=2, bn=True):
         super().__init__()
         modules = [UNet_Block(n_depth, n_ch_in, n_base_ch, n_conv_per_depth, n_pooling, bn), nn.Conv2d(n_base_ch, n_ch_in, kernel_size=3, padding=1)]

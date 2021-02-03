@@ -1,6 +1,6 @@
 resume="False"
 n_thread="4"
-while getopts g:t:r opt
+while getopts g:t:r: opt
 do
    case "$opt" in
       g) gpu_id="$OPTARG";;
@@ -11,8 +11,8 @@ done
 
 ##### Setting #####
 
-session="self-DBSN_clean"
-config="self-DBSN"
+session="super-NarrowDnCNN"
+config="super-NarrowDnCNN"
 
 ###################
 

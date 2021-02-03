@@ -13,6 +13,13 @@ model_module_dict = {
                 # D-BSN
                 'DBSN': 'DBSN',
                 'C_BSN': 'DBSN',
+
+                # CLtoN
+                'CLtoN_G': 'CLtoN',
+                'CLtoN_D': 'CLtoN',
+
+                # Custom
+                'NarrowDnCNN': 'DnCNN',
                 }
 
 def get_model_object(model_name):

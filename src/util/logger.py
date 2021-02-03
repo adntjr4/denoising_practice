@@ -6,18 +6,20 @@ from .progress_msg import ProgressMsg
 
 
 class Logger(ProgressMsg):
-    def __init__(self, max_iter:tuple, log_dir:str=None, log_lvl:str='debug', log_file_lvl:str='debug', log_include_time:bool=True):
+    def __init__(self, max_iter:tuple, log_dir:str=None, log_file_option:str='w', log_lvl:str='debug', log_file_lvl:str='debug', log_include_time:bool=True):
         '''
         Args:
             session_name (str)
             max_iter (tuple) : max iteration for progress
             log_dir (str) : if None, no file out for logging
+            log_file_option (str) : 'w' or 'a'
             log_lvl (str) : 'debug' < 'info' < 'warning'
             log_include_time (bool)
         '''
         self.lvl_list = ['debug', 'info', 'highlight', 'val']
         self.lvl_color = [bcolors.FAIL, None, bcolors.WARNING, bcolors.OKGREEN]
 
+        assert log_file_option in ['w', 'a']
         assert log_lvl in self.lvl_list
         assert log_file_lvl in self.lvl_list
 
@@ -32,8 +34,8 @@ class Logger(ProgressMsg):
         
         # init logging
         if self.log_dir is not None:
-            self.log_file = open(os.path.join(log_dir, 'log.log'), 'w')
-            self.val_file = open(os.path.join(log_dir, 'validation.log'), 'w')
+            self.log_file = open(os.path.join(log_dir, 'log.log'), log_file_option)
+            self.val_file = open(os.path.join(log_dir, 'validation.log'), log_file_option)
 
     def debug(self, txt):
         txt = str(txt)

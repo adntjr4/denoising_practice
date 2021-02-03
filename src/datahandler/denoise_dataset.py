@@ -3,6 +3,7 @@ from importlib import import_module
 
 import cv2
 import numpy as np
+from scipy.ndimage import gaussian_filter
 import torch
 from torch.utils.data import Dataset
 
@@ -134,6 +135,8 @@ class DenoiseDataSet(Dataset):
                 mask, data['masked'] = self._mask(data['real_noisy'])
             elif 'syn_noisy' in data:
                 mask, data['masked'] = self._mask(data['syn_noisy'])
+            elif 'clean' in data:
+                mask, data['masked'] = self._mask(data['clean'])
             else:
                 raise RuntimeError('there is no noisy image for masking.')
             if mask is not None:
@@ -278,14 +281,34 @@ class DenoiseDataSet(Dataset):
         return (img*stds) + means
 
     def _parse_add_noise(self, add_noise_str):
-        if add_noise_str != None:
+        if add_noise_str == 'bypass':
+            return 'bypass', None
+        elif add_noise_str != None:
             add_noise_type = add_noise_str.split('-')[0]
             add_noise_opt = [float(v) for v in add_noise_str.split('-')[1].split(':')]
             return add_noise_type, add_noise_opt
         return None, None
 
     def _add_noise(self, clean_img:torch.Tensor, add_noise_type:str, opt) -> torch.Tensor:
-        if add_noise_type == 'uni':
+        '''
+        add various noise to clean image.
+        Args:
+            clean_img (Tensor) : clean image to synthesize on.
+            add_noise_type : below types are available.
+            opt (list) : optional args for synthsize noise.
+        Return:
+            synthesized_img
+        Noise_types
+            - uni (uniform distribution noise from -opt[0] ~ opt[0]
+            - gau (gaussian distribution noise with zero-mean & opt[0] variance)
+            - gau_bline (blind gaussian distribution with zero-mean, variance is uniformly selected from opt[0] ~ opt[1])
+            - struc_gau (structured gaussian noise. gaussian filter is applied to above gaussian noise. opt[0] is variance of gaussian)
+            - het_gau (heteroscedastic gaussian noise with indep weight:opt[0], dep weight:opt[1].)
+        '''
+        if add_noise_type == 'bypass':
+            # bypass clean image
+            return clean_img
+        elif add_noise_type == 'uni':
             # add uniform noise
             return clean_img + 2*opt[0] * torch.rand(clean_img.shape) - opt[0]
         elif add_noise_type == 'gau':
@@ -294,8 +317,12 @@ class DenoiseDataSet(Dataset):
         elif add_noise_type == 'gau_blind':
             # add blind gaussian noise
             return clean_img + torch.normal(mean=0., std=random.uniform(opt[0], opt[1]), size=clean_img.shape)
-        elif add_noise_type == 'poi_gau':
-            # add poisson guassian noise
+        elif add_noise_type == 'struc_gau':
+            gau_noise = torch.normal(mean=0., std=opt[0], size=clean_img.shape)
+            struc_gau = torch.Tensor(gaussian_filter(gau_noise, sigma=1))*9
+            return clean_img + struc_gau
+        elif add_noise_type == 'het_gau':
+            # add heteroscedastic  guassian noise
             poi_gau_std = (clean_img * (opt[0]**2) + torch.ones(clean_img.shape) * (opt[1]**2)).sqrt()
             return clean_img + torch.normal(mean=0., std=poi_gau_std)
         else:

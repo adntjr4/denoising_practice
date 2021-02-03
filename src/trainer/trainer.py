@@ -1,62 +1,27 @@
-import os, math
-from importlib import import_module
+import os
 
 import cv2
-import numpy as np
 import torch
-from torch import nn
-from torch import optim
-from torch.utils.data import DataLoader
 
-from .output import Output
+from .trainer_basic import BasicTrainer, status_len
 from ..model import get_model_object
-from ..loss.loss import Loss
 from ..loss.metrics import psnr, ssim
-from ..datahandler.denoise_dataset import get_dataset_object
-from ..util.logger import Logger
-from ..util.warmup_scheduler import WarmupLRScheduler
 from ..util.util import tensor2np
 
-status_len = 13
 
-class Trainer(Output):
+class Trainer(BasicTrainer):
     def __init__(self, cfg):
-        self.session_name = cfg['session_name']
-
-        self.checkpoint_folder = 'checkpoint'
-
-        dir_list = ['checkpoint', 'img', 'tboard']
-        super().__init__(self.session_name, dir_list)
-        
-        self.cfg = cfg
-        self.train_cfg = cfg['training']
-        self.val_cfg   = cfg['validation']
-        self.ckpt_cfg  = cfg['checkpoint']
-
+        super().__init__(cfg)
+    
     @torch.no_grad()
     def test(self):
         raise NotImplementedError('TODO')
 
-    def train(self):
-        # initializing
-        self._before_train()
-
-        # warmup
-        if self.epoch == 1 and self.train_cfg['warmup']:
-            self._warmup()
-
-        # training
-        for self.epoch in range(self.epoch, self.max_epoch+1):
-            self._before_epoch()
-            self._run_epoch()
-            self._after_epoch()
-        
-        self._after_train()
-
     @torch.no_grad()
     def validation(self):
         # evaluation mode
-        self.model.eval()
+        for m in self.model.values():
+            m.eval() 
 
         # make directories for image saving
         if self.val_cfg['save_image']:
@@ -73,7 +38,7 @@ class Trainer(Output):
                     data[key] = data[key].cuda()
 
             # forward
-            denoised_image = self.model(data[self.cfg['model_input']])
+            denoised_image = self.model['denoiser'](data[self.cfg['model_input']])
 
             # inverse normalize dataset (if normalization is on)
             if self.val_cfg['normalization']:
@@ -107,231 +72,169 @@ class Trainer(Output):
         else:
             self.logger.val('[%s] Done!')
 
-    def _warmup(self):
-        self.status = 'warmup'.ljust(status_len) #.center(status_len)
-
-        self.train_data_loader_iter = iter(self.train_data_loader)
-        warmup_iter = self.train_cfg['warmup_iter']
-        if warmup_iter > self.train_data_loader.__len__():
-            self.logger.info('currently warmup support 1 epoch as maximum. warmup iter is replaced to 1 epoch iteration. %d -> %d' \
-                % (warmup_iter, self.train_data_loader.__len__()))
-            warmup_iter = self.train_data_loader.__len__()
-        self.warmup_scheduler = WarmupLRScheduler(self.optimizer, warmup_iter)
-
-        for self.iter in range(1, warmup_iter+1):
-            self._before_step()
-            self._run_step()
-            self._after_step()
-            self.warmup_scheduler.step()
-
-    def _before_train(self):
-        # initialing
-        self.module = get_model_object(self.cfg['model'])()
-
-        # training dataset loader
-        train_other_args = self._set_other_args(self.train_cfg)
-        self.train_data_set = get_dataset_object(self.train_cfg['dataset'])(crop_size = self.train_cfg['crop_size'], 
-                                                                            add_noise = self.train_cfg['add_noise'], 
-                                                                            mask      = self.train_cfg['mask'],
-                                                                            aug       = self.train_cfg['aug'],
-                                                                            norm      = self.train_cfg['normalization'],
-                                                                            n_repeat  = self.train_cfg['n_repeat'],
-                                                                            **train_other_args,)
-        self.train_data_loader = DataLoader(dataset=self.train_data_set, batch_size=self.train_cfg['batch_size'], shuffle=True, num_workers=self.cfg['thread'])
-
-        # validation dataset loader
-        if self.val_cfg['val']:
-            val_other_args = self._set_other_args(self.val_cfg)
-            self.val_data_set = get_dataset_object(self.val_cfg['dataset'])(crop_size = self.val_cfg['crop_size'], 
-                                                                            add_noise = self.val_cfg['add_noise'],
-                                                                            mask      = self.val_cfg['mask'],
-                                                                            norm      = self.val_cfg['normalization'],
-                                                                            **val_other_args,)
-            self.val_data_loader   = DataLoader(dataset=self.val_data_set, batch_size=1, shuffle=False, num_workers=self.cfg['thread'])
-
-        # other configuration
-        self.max_epoch = self.train_cfg['max_epoch']
-        self.epoch = self.start_epoch = 1
-        self.max_iter = math.ceil(self.train_data_loader.dataset.__len__() / self.train_cfg['batch_size'])
-
-        self.loss = Loss(self.train_cfg['loss'])
-        self.loss_dict = self.loss.get_loss_dict_form()
-        self.loss_log = []
+    def _set_module(self):
+        module = {}
+        module['denoiser'] = get_model_object(self.cfg['model'])()
+        return module
         
-        # logger initialization
-        self.logger = Logger((self.max_epoch, self.max_iter), log_dir=self.get_dir(''))
+    def _set_optimizer(self):
+        optimizer = {}
+        for key in self.module:
+            optimizer[key] = self._set_one_optimizer(self.module[key].parameters())
+        return optimizer
 
-        # resume
-        if self.cfg["resume"]:
-            # find last checkpoint
-            load_epoch = self._find_last_epoch()
-
-            # load last checkpoint
-            self.load_checkpoint(load_epoch)
-            self.epoch = load_epoch+1
-
-        # set optimizer and scheduler
-        self.optimizer = self._set_optimizer(self.module.parameters())
-        self.scheduler = self._set_scheduler()
-
-        # cuda
-        if self.cfg['gpu'] != 'None':
-            self.model = nn.DataParallel(self.module).cuda()
-            self.loss = self.loss.cuda()
-        else:
-            self.model = nn.DataParallel(self.module)
-
-        # start message
-        self.logger.start((self.epoch-1, 0))
-        self.logger.highlight(self.logger.get_start_msg())
-
-    def _after_train(self):
-        # finish message
-        self.logger.highlight(self.logger.get_finish_msg())
-
-    def _before_epoch(self):
-        self.status = ('epoch %03d/%03d'%(self.epoch, self.max_epoch)).center(status_len)
-
-        # dataloader iter
-        self.train_data_loader_iter = iter(self.train_data_loader)
-
-        # model training mode
-        self.model.train()
-
-        
-    def _run_epoch(self):
-        for self.iter in range(1, self.max_iter+1):
-            self._before_step()
-            self._run_step()
-            self._after_step()
-
-    def _after_epoch(self):
-        # scheduler step
-        self.scheduler.step()
-
-        # save checkpoint
-        if self.epoch >= self.ckpt_cfg['start_epoch']:
-            if (self.epoch-self.ckpt_cfg['start_epoch'])%self.ckpt_cfg['interval_epoch'] == 0:
-                self.save_checkpoint()
-
-        # validation
-        if self.val_cfg['val']:
-            if self.epoch >= self.val_cfg['start_epoch'] and self.val_cfg['val']:
-                if (self.epoch-self.val_cfg['start_epoch']) % self.val_cfg['interval_epoch'] == 0:
-                    self.validation()
-
-    def _before_step(self):
-        pass
-
-    def _run_step(self):
-        # get data (data should be dictionary of Tensors)
-        data = next(self.train_data_loader_iter)
-
-        # to device
-        if self.cfg['gpu'] != 'None':
-            for key in data:
-                data[key] = data[key].cuda()
-
+    def _step(self, data):
         # forward
-        model_output = self.model(data[self.cfg['model_input']])
+        model_output = self.model['denoiser'](data[self.cfg['model_input']])
+
+        # zero grad
+        for opt in self.optimizer.values():
+            opt.zero_grad() 
 
         # get losses
         losses = self.loss(model_output, data)
 
         # backward
-        self.optimizer.zero_grad()
         total_loss = sum(v for v in losses.values())
         total_loss.backward()
-        self.optimizer.step()
 
-        # save losses
-        for key in losses:
-            if key != 'count': self.loss_dict[key] += float(losses[key])
-        self.loss_dict['count'] += 1
+        # optimizer step
+        for opt in self.optimizer.values():
+            opt.step() 
 
-    def _after_step(self):
-        # print loss
-        if (self.iter%self.cfg['log']['interval_iter']==0 and self.iter!=0) or (self.iter == self.max_iter):
-            self.print_loss()
+        return losses
 
-        # print progress
-        self.logger.print_prog_msg((self.epoch-1, self.iter-1))
+class Trainer_GAN(BasicTrainer):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.global_iter = 0
 
+    @torch.no_grad()
+    def test(self):
+        raise NotImplementedError('TODO')
 
+    @torch.no_grad()
+    def validation(self):
+        raise NotImplementedError('TODO')
+        # evaluation mode
+        for m in self.model.values():
+            m.eval()
 
-    def print_loss(self):
-        temperal_loss = 0.
-        for key in self.loss_dict:
-            if key != 'count':
-                    temperal_loss += self.loss_dict[key]/self.loss_dict['count']
-        self.loss_log += [temperal_loss]
+        # make directories for image saving
+        if self.val_cfg['save_image']:
+            img_save_path = self.get_dir('img/val_%03d'%self.epoch)
+            os.makedirs(img_save_path, exist_ok=True)
 
-        loss_out_str = '[%s] %04d/%04d, lr:%s | '%(self.status, self.iter, self.max_iter, "{:.2e}".format(self._get_current_lr()))
+        # validation
+        KL_divergence_sum = 0.
+        KL_divergence_count = 0
+        for idx, data in enumerate(self.val_data_loader):
+            # to device
+            if self.cfg['gpu'] != 'None':
+                for key in data:
+                    data[key] = data[key].cuda()
+            
+            # forward (noisy image generation from clean image)
+            generated_noisy_img = data['clean'] + self.model['model_G'](data['clean'])
 
-        loss_out_str += 'avg_loss : %.4f | '%(np.mean(self.loss_log))
+            # inverse normalize dataset & result tensor
+            if self.val_cfg['normalization']:
+                generated_noisy_img = self.val_data_set.inverse_normalize(generated_noisy_img, self.cfg['gpu'] != 'None')
+                data = self.val_data_set.inverse_normalize_data(data, self.cfg['gpu'] != 'None')
 
-        for key in self.loss_dict:
-            if key != 'count':
-                loss_out_str += '%s : %.4f | '%(key, self.loss_dict[key]/self.loss_dict['count'])
-                self.loss_dict[key] = 0.
-        self.loss_dict['count'] = 0
-        self.logger.info(loss_out_str)
+            # evaluation (KL-divergence)
+            noisy_target_name = 'real_noisy' if 'real_noisy' in data else 'syn_noisy'
+            
+            # image save
+            if self.val_cfg['save_image']:
+                # to cpu
+                clean_img = data['clean'].squeeze().cpu()
+                noisy_img = data[noisy_target_name].squeeze().cpu()
+                gener_img = generated_noisy_img.squeeze().cpu()
 
-    def save_checkpoint(self):
-        checkpoint_name = self._checkpoint_name(self.epoch)
-        torch.save({'epoch': self.epoch,
-                    'model_weight': self.model.module.state_dict(),
-                    'optimizer': self.optimizer,
-                    'scheduler': self.scheduler},
-                    os.path.join(self.get_dir(self.checkpoint_folder), checkpoint_name))
+                # imwrite
+                cv2.imwrite(os.path.join(img_save_path, '%04d_CL.png'%idx),    tensor2np(clean_img))
+                cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx),     tensor2np(noisy_img))
+                cv2.imwrite(os.path.join(img_save_path, '%04d_N_gen.png'%idx), tensor2np(denoi_img))
 
-    def load_checkpoint(self, load_epoch):
-        file_name = os.path.join(self.get_dir(self.checkpoint_folder), self._checkpoint_name(load_epoch))
-        assert os.path.isfile(file_name), 'there is no checkpoint: %s'%file_name
-        saved_checkpoint = torch.load(file_name)
-        self.epoch = saved_checkpoint['epoch']
-        self.module.load_state_dict(saved_checkpoint['model_weight'])
-        self.optimizer = saved_checkpoint['optimizer']
-        self.scheduler = saved_checkpoint['schedular']
-
-
-
-    def _checkpoint_name(self, epoch):
-        return self.session_name + '_%03d'%self.epoch + '.pth'
-
-    def _find_last_epoch(self):
-        checkpoint_list = os.listdir(self.get_dir(self.checkpoint_folder))
-        epochs = [int(ckpt.replace('%s_'%self.session_name, '').replace('.pth', '')) for ckpt in checkpoint_list]
-        assert len(epochs) > 0, 'There is no resumable checkpoint on session %s.'%self.session_name
-        return max(epochs)
-
-    def _get_current_lr(self):
-        for param_group in self.optimizer.param_groups:
-            return param_group['lr']
-
-    def _set_optimizer(self, parameters):
-        opt = self.train_cfg['optimizer']
-        lr = float(self.train_cfg['init_lr'])
-
-        if opt['type'] == 'SGD':
-            return optim.SGD(parameters, lr=lr, momentum=float(opt['SGD']['momentum']), weight_decay=float(opt['SGD']['weight_decay']))
-        elif opt['type'] == 'Adam':
-            return optim.Adam(parameters, lr=lr, betas=opt['Adam']['betas'])
+        # info
+        status = ('  val %03d '%self.epoch).ljust(status_len) #.center(status_len)
+        if KL_divergence_count > 0:
+            self.logger.val('[%s] Done! KL-div : %.2f dB'%(status, KL_divergence_sum/KL_divergence_count))
         else:
-            raise RuntimeError('ambiguious optimizer type: {}'.format(opt['type']))
+            self.logger.val('[%s] Done!')
 
-    def _set_scheduler(self):
-        sched = self.train_cfg['scheduler']
+    def _set_module(self):
+        module = {}
+        module['model_G'] = get_model_object(self.cfg['model_G'])()
+        module['model_D'] = get_model_object(self.cfg['model_D'])()
+        return module
 
-        if sched['type'] == 'step':
-            return optim.lr_scheduler.StepLR(optimizer=self.optimizer, step_size=sched['step']['step_size'], gamma=sched['step']['gamma'], last_epoch=self.epoch-2)
-        else:
-            raise RuntimeError('ambiguious scheduler type: {}'.format(sched['type']))
+    def _set_optimizer(self):
+        optimizer = {}
+        for key in self.module:
+            optimizer[key] = self._set_one_optimizer(self.module[key].parameters())
+        return optimizer
+        
+    def _step(self, data):
+        '''
+        Currently here we implemented WGAN-GP only in original CLtoN code.
+        TODO : implemete simple DCGAN and WGAN
+        '''
+        # WGAN_GP hyper-parameter setting
+        n_critic = 5
+        GP_weight = 10 # (lambda in paper)
 
-    def _set_other_args(self, cfg):
-        other_args = {}
-        if 'power_cliping' in cfg:
-            other_args['power_cliping'] = cfg['power_cliping']
-        if 'keep_on_mem' in cfg:
-            other_args['keep_on_mem'] = cfg['keep_on_mem']
-        return other_args
+        # step 1 (training model_D for critic iterations (here we set 5 as original setting))
+        for _ in range(n_critic):
+            # forward
+            generated_noisy_img = data['clean'] + self.model['model_G'](data['clean'])
+            generated_noisy_img = generated_noisy_img.detach()
+            real_noisy_img = data['real_noisy']
+
+            D_fake = self.model['model_D'](generated_noisy_img)
+            D_real = self.model['model_D'](real_noisy_img)
+
+            # zero grad
+            for opt in self.optimizer.values():
+                opt.zero_grad() 
+
+            # get losses
+            losse
+
+            #
+
+            
+
+
+        # step 2 (training model_G)
+        generated_noisy_img = data['clean'] + self.model['model_G'](data['clean'])
+
+        # zero grad
+
+        # get losses
+
+        # backward
+
+        return losses
+
+class Trainer_w_GAN(BasicTrainer):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+
+    @torch.no_grad()
+    def test(self):
+        raise NotImplementedError('TODO')
+
+    def validation(self):
+        raise NotImplementedError('TODO')
+
+    def _set_module(self):
+        raise NotImplementedError('TODO')
+
+    def _set_optimizer(self):
+        raise NotImplementedError('TODO')
+    
+    def _step(self, data):
+        raise NotImplementedError('TODO')
+    

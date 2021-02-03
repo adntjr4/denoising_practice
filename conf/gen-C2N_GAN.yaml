@@ -1,11 +1,12 @@
 
-model: CDnCNN_B
+model_G: CLtoN_G
+model_D: CLtoN_D
 
-model_input: syn_noisy # e.g.) real_noisy, syn_noisy, masked, clean
+# model_input: syn_noisy # e.g.) real_noisy, syn_noisy, masked, clean
 
 training:
-  dataset: CBSD432
-  add_noise: gau-15. # e.g.) None uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
+  dataset: SIDD
+  add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
   mask: None # e.g.) None bypass stf_64-rnd
   crop_size: [96, 96]
   aug: ['hflip', 'rot']
@@ -22,9 +23,9 @@ training:
     step:
       step_size: 10
       gamma: 0.1
-  loss: 1.*L2
+  loss: 1.*WGAN_D + 1.*GP + 1.*WGAN_G
   optimizer:
-    type: SGD
+    type: Adam
     SGD:
       momentum: 0.9
       weight_decay: 1e-4

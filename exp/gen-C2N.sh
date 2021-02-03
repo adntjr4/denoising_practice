@@ -11,8 +11,8 @@ done
 
 ##### Setting #####
 
-session="self-DBSN_clean"
-config="self-DBSN"
+session="gen-C2V_test"
+config="gen-C2V"
 
 ###################
 

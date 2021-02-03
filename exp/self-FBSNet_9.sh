@@ -11,13 +11,13 @@ done
 
 ##### Setting #####
 
-session="self-FBSNet_R"
-config="self-FBSNet_R"
+session="self-FBSNet_9"
+config="self-FBSNet_9"
 
 ###################
 
 cd ..
-if [ $resume == "True" ]
+if $resume == "True"
 then
   python train.py --session_name $session \
                   --config $config \

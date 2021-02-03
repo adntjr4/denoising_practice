@@ -24,7 +24,7 @@ My custom repository for multiple Denoising task.
 - Generative noise model training.
     - [ ] revise codes for GAN (e.g. loss, trainer, config, etc)
     - [ ] C2N reproduction
-
+    
 - basic modules for deep-learning.
     - [ ] Add test code
     - [ ] Add summary printing module
@@ -32,3 +32,8 @@ My custom repository for multiple Denoising task.
     - [x] Use "start_epoch" and "interval_epoch"
     - [x] Add validation image out
     - [x] Add training process for self-supervised manner
+
+
+### Notepad
+
+- receptive field

@@ -21,6 +21,7 @@ model_module_dict = {
                 # Custom
                 'NarrowDnCNN': 'DnCNN',
                 'FBSNet': 'FBSNet',
+                'FBSNet_R': 'FBSNet_R',
                 }
 
 def get_model_object(model_name):

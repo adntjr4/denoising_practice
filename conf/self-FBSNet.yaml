@@ -1,5 +1,5 @@
 
-model: DBSN
+model: FBSNet
 
 model_input: masked # e.g.) real_noisy, syn_noisy, masked, clean
 

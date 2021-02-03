@@ -65,7 +65,16 @@ class FBSNet(nn.Module):
         collect_conv = CollectMaskedConv2d(base_ch, base_ch, bias=bias)
         collect_conv11 = [ResBlock(base_ch, kernel_size=1, act='ReLU', bias=bias) for _ in range(num_block)]
 
-        self.model = nn.Sequential(initial_conv11, head_conv, *head_conv11, collect_conv, *collect_conv11)
+        last_conv11 = nn.Conv2d(base_ch, in_ch, kernel_size=1)
+
+        self.model = nn.Sequential(initial_conv11, head_conv, *head_conv11, collect_conv, *collect_conv11, last_conv11)
 
     def forward(self, x):
         return self.model(x)
+
+if __name__ == '__main__':
+    fbsnet = FBSNet()
+    i = torch.randn(16,1,64,64)
+    o = fbsnet(i)
+    print(o.shape)
+    print(sum(p.numel() for p in fbsnet.parameters()))

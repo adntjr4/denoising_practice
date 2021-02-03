@@ -11,8 +11,8 @@ done
 
 ##### Setting #####
 
-session="self-DBSN"
-config="self-DBSN"
+session="self-FBSNet"
+config="self-FBSNet"
 
 ###################
 

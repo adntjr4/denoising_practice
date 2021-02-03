@@ -89,8 +89,10 @@ class C_DBSN(DBSN):
  
 
 if __name__ == "__main__":
-    t = torch.zeros([3,3,16,16])
+    t = torch.randn(16,1,64,64)
 
     model = DBSN()
 
     print(model(t).shape)
+    print(sum(p.numel() for p in model.parameters()))
+    

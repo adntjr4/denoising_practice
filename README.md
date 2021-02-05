@@ -36,4 +36,7 @@ My custom repository for multiple Denoising task.
 
 ### Notepad
 
-- receptive field
+- receptive field가 좁아져도 성능이 늘어나는가?
+    - 1x1 conv만 있어도 괜찮은 가를 실험 or paper survey
+- near pixel attention을 적용할 방법을 생각.
+- training scheme을 Laine or DBSN처럼 하는 방법을 생각.

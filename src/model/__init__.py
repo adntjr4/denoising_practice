@@ -14,6 +14,9 @@ model_module_dict = {
                 'DBSN': 'DBSN',
                 'C_BSN': 'DBSN',
 
+                # Effective Blind-Spot Network
+                'EBSN' : 'EBSN',
+
                 # CLtoN
                 'CLtoN_G': 'CLtoN',
                 'CLtoN_D': 'CLtoN',

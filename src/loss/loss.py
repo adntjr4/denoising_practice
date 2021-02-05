@@ -44,7 +44,6 @@ class Loss(nn.Module):
             elif name == 'GP':
                 D_inter, img_inter = model_output
                 losses[name] = single_loss['weight'] * single_loss['func'](D_inter, img_inter)
-            
             if loss_name is not None:
                 return losses
         return losses

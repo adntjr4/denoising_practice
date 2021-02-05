@@ -125,8 +125,10 @@ class DenoiseDataSet(Dataset):
             if self.add_noise_type is not None:
                 if 'clean' in data:
                     data['syn_noisy'] = self._add_noise(data['clean'], self.add_noise_type, self.add_noise_opt)
+                elif 'real_noisy' in data:
+                    data['syn_noisy'] = self._add_noise(data['real_noisy'], self.add_noise_type, self.add_noise_opt)
                 else:
-                    raise RuntimeError('there is no clean image to synthesize. (synthetic noise type: %s)'%self.add_noise_type)
+                    raise RuntimeError('there is no clean or real image to synthesize. (synthetic noise type: %s)'%self.add_noise_type)
 
         # mask on noisy image
         if self.sampler is not None or self.replacer is not None:

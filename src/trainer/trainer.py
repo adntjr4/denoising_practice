@@ -195,12 +195,17 @@ class Trainer_GAN(BasicTrainer):
             D_fake = self.model['model_D'](generated_noisy_img)
             D_real = self.model['model_D'](real_noisy_img)
 
+            # interpolation
+            map_alpha = alpha.expand(N, int(b_real.nelement()/N)).contiguous().view(N, C_in, H_in, W_in)
+            D_inter
+
             # zero grad
             for opt in self.optimizer.values():
                 opt.zero_grad() 
 
             # get losses
-            losse
+            losses =      self.loss((D_fake, D_real), data, 'WGAN_D')
+            losses.update(self.loss((D_inter, img_inter), data, 'GP'))
 
             #
 

@@ -1,7 +1,7 @@
 
 model: NarrowDnCNN
 
-model_input: syn_noisy # e.g.) real_noisy, syn_noisy, masked, clean
+model_input: [syn_noisy] # e.g.) real_noisy, syn_noisy, masked, clean
 
 training:
   dataset: BSD432

@@ -1,7 +1,7 @@
 
 model: DnCNN_B
 
-model_input: masked # e.g.) real_noisy, syn_noisy, masked, clean
+model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 
 training:
   dataset: Synthesized_BSD432_25

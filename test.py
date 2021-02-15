@@ -10,14 +10,16 @@ def main():
     # parsing configuration
     args = argparse.ArgumentParser()
     args.add_argument('--session_name', default=None,  type=str)
-    args.add_argument('--config',  default=None,  type=str)
-    args.add_argument('--gpu',     default=None,  type=str)
-    args.add_argument('--thread',  default=4,     type=int)
+    args.add_argument('--config',       default=None,  type=str)
+    args.add_argument('--ckpt_epoch',   default=None,  type=int)
+    args.add_argument('--gpu',          default=None,  type=str)
+    args.add_argument('--thread',       default=4,     type=int)
 
     args = args.parse_args()
 
     assert args.session_name is not None, 'session name is required'
     assert args.config is not None, 'config file path is needed'
+    assert args.ckpt_epoch is not None, 'checkpoint epoch is needed'
 
     cfg = ConfigParser(args)
 

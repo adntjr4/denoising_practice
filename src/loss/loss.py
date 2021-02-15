@@ -12,11 +12,11 @@ class Loss(nn.Module):
         for single_loss in loss_string.split('+'):
             weight, name = single_loss.split('*')
 
-            if name == 'L1' or name == 'self_L1':
+            if name == 'L1' or name == 'self_L1' or name == 'nlf_L1':
                 loss_function = nn.L1Loss(reduction='mean')
-            elif name == 'L2' or name == 'self_L2':
+            elif name == 'L2' or name == 'self_L2' or name == 'nlf_L2':
                 loss_function = nn.MSELoss(reduction='mean')
-            elif name == 'WGAN_D' or name == 'WGAN_G':
+            elif name == 'self_likelihood' or name == 'WGAN_D' or name == 'WGAN_G':
                 loss_function = None
             elif name == 'GP':
                 loss_function = gradient_penalty
@@ -33,17 +33,36 @@ class Loss(nn.Module):
             name = single_loss['name'] if loss_name is None else loss_name
             if name == 'L1' or name == 'L2':
                 losses[name] = single_loss['weight'] * single_loss['func'](model_output, data['clean'])
+
             elif name == 'self_L1' or name == 'self_L2':
                 self_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
                 losses[name] = single_loss['weight'] * single_loss['func'](model_output * data['mask'], self_noisy * data['mask'])
+
+            elif name == 'nlf_L1' or name == 'nlf_L2':
+                pass
+
+
+            elif name == 'self_likelihood':
+                self_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
+                c = 1 if model_output.shape[1] == 2 else 3
+                means, variance = model_output[:,:c,:,:], model_output[:,c:,:,:]
+                variance = torch.pow(variance, 2) + 625
+
+                loss = torch.pow(self_noisy-means, 2) / variance + torch.log(variance)
+
+                losses[name] = single_loss['weight'] * loss.mean()
+
             elif name == 'WGAN_D':
                 D_fake, D_real = model_output
                 losses[name] = single_loss['weight'] * (torch.mean(D_fake)-torch.mean(D_real))
+
             elif name == 'WGAN_G':
                 losses[name] = single_loss['weight'] * -torch.mean(model_output)
+                
             elif name == 'GP':
                 D_inter, img_inter = model_output
                 losses[name] = single_loss['weight'] * single_loss['func'](D_inter, img_inter)
+
             if loss_name is not None:
                 return losses
         return losses

@@ -6,7 +6,7 @@ from .progress_msg import ProgressMsg
 
 
 class Logger(ProgressMsg):
-    def __init__(self, max_iter:tuple, log_dir:str=None, log_file_option:str='w', log_lvl:str='debug', log_file_lvl:str='debug', log_include_time:bool=True):
+    def __init__(self, max_iter:tuple=None, log_dir:str=None, log_file_option:str='w', log_lvl:str='debug', log_file_lvl:str='debug', log_include_time:bool=True):
         '''
         Args:
             session_name (str)

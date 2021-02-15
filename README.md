@@ -36,6 +36,9 @@ My custom repository for multiple Denoising task.
 
 ### Notepad
 
+- DBSN의 장점은 4방향으로 퍼진다는 것이다.
+- EBSN의 장점은 3x3conv를 사용하여 connection이 많고 skip connection이 있는 network를 구성할 수 있다는 것이다.
+- 이 둘의 장점을 합칠 수 있을 것이다.
 - receptive field가 좁아져도 성능이 늘어나는가?
     - 1x1 conv만 있어도 괜찮은 가를 실험 or paper survey
 - near pixel attention을 적용할 방법을 생각.

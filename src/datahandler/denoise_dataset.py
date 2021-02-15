@@ -78,7 +78,7 @@ class DenoiseDataSet(Dataset):
 
         self.dataset_dir = './dataset'
         
-        self.add_noise_type, self.add_noise_opt = self._parse_add_noise(add_noise)
+        self.add_noise_type, self.add_noise_opt, self.add_noise_clamp = self._parse_add_noise(add_noise)
         self.sampler, self.replacer = self._parse_mask(mask)
 
         self.crop_size = crop_size
@@ -124,9 +124,13 @@ class DenoiseDataSet(Dataset):
         if not 'syn_noisy' in data:
             if self.add_noise_type is not None:
                 if 'clean' in data:
-                    data['syn_noisy'] = self._add_noise(data['clean'], self.add_noise_type, self.add_noise_opt)
+                    syn_noisy_img, nlf = self._add_noise(data['clean'], self.add_noise_type, self.add_noise_opt, self.add_noise_clamp)
+                    data['syn_noisy'] = syn_noisy_img
+                    data['nlf'] = nlf
                 elif 'real_noisy' in data:
-                    data['syn_noisy'] = self._add_noise(data['real_noisy'], self.add_noise_type, self.add_noise_opt)
+                    syn_noisy_img, nlf = self._add_noise(data['real_noisy'], self.add_noise_type, self.add_noise_opt, self.add_noise_clamp)
+                    data['syn_noisy'] = syn_noisy_img
+                    data['nlf'] = nlf
                 else:
                     raise RuntimeError('there is no clean or real image to synthesize. (synthetic noise type: %s)'%self.add_noise_type)
 
@@ -284,14 +288,15 @@ class DenoiseDataSet(Dataset):
 
     def _parse_add_noise(self, add_noise_str):
         if add_noise_str == 'bypass':
-            return 'bypass', None
+            return 'bypass', None, None
         elif add_noise_str != None:
             add_noise_type = add_noise_str.split('-')[0]
             add_noise_opt = [float(v) for v in add_noise_str.split('-')[1].split(':')]
-            return add_noise_type, add_noise_opt
-        return None, None
+            add_noise_clamp = len(add_noise_str.split('-'))>2 and add_noise_str.split('-')[2] == 'clamp'
+            return add_noise_type, add_noise_opt, add_noise_clamp
+        return None, None, None
 
-    def _add_noise(self, clean_img:torch.Tensor, add_noise_type:str, opt) -> torch.Tensor:
+    def _add_noise(self, clean_img:torch.Tensor, add_noise_type:str, opt, clamp=False) -> torch.Tensor:
         '''
         add various noise to clean image.
         Args:
@@ -307,28 +312,39 @@ class DenoiseDataSet(Dataset):
             - struc_gau (structured gaussian noise. gaussian filter is applied to above gaussian noise. opt[0] is variance of gaussian)
             - het_gau (heteroscedastic gaussian noise with indep weight:opt[0], dep weight:opt[1].)
         '''
+        nlf = None
+
         if add_noise_type == 'bypass':
             # bypass clean image
-            return clean_img
+            synthesized_img = clean_img
         elif add_noise_type == 'uni':
             # add uniform noise
-            return clean_img + 2*opt[0] * torch.rand(clean_img.shape) - opt[0]
+            synthesized_img = clean_img + 2*opt[0] * torch.rand(clean_img.shape) - opt[0]
         elif add_noise_type == 'gau':
             # add AWGN
-            return clean_img + torch.normal(mean=0., std=opt[0], size=clean_img.shape)
+            nlf = opt[0]
+            synthesized_img = clean_img + torch.normal(mean=0., std=nlf, size=clean_img.shape)
+            
         elif add_noise_type == 'gau_blind':
             # add blind gaussian noise
-            return clean_img + torch.normal(mean=0., std=random.uniform(opt[0], opt[1]), size=clean_img.shape)
+            nlf = random.uniform(opt[0], opt[1])
+            synthesized_img = clean_img + torch.normal(mean=0., std=nlf, size=clean_img.shape)
         elif add_noise_type == 'struc_gau':
             gau_noise = torch.normal(mean=0., std=opt[0], size=clean_img.shape)
             struc_gau = torch.Tensor(gaussian_filter(gau_noise, sigma=1))*9
-            return clean_img + struc_gau
+            synthesized_img = clean_img + struc_gau
         elif add_noise_type == 'het_gau':
             # add heteroscedastic  guassian noise
             poi_gau_std = (clean_img * (opt[0]**2) + torch.ones(clean_img.shape) * (opt[1]**2)).sqrt()
-            return clean_img + torch.normal(mean=0., std=poi_gau_std)
+            nlf = poi_gau_std
+            synthesized_img = clean_img + torch.normal(mean=0., std=nlf)
         else:
             raise RuntimeError('undefined additive noise type : %s'%add_noise_type)
+
+        if clamp:
+            synthesized_img = torch.clamp(synthesized_img, 0, 255)
+
+        return synthesized_img, nlf
 
     def _parse_mask(self, mask_str):
         if mask_str == None:

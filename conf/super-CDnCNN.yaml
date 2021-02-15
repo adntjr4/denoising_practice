@@ -54,4 +54,12 @@ checkpoint:
 
 log:
   interval_iter: 50
-  save_file: True
+
+test:
+  dataset: CBSD68
+  crop_size: None # [64, 64]
+  add_noise: gau-15. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
+  mask: None # e.g.) None bypass stf_64-rnd
+  normalization: True
+
+  save_image: True

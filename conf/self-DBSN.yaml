@@ -45,7 +45,6 @@ validation:
 
   val: True
   save_image: True
-  save_file: True
   
   start_epoch: 10
   interval_epoch: 10
@@ -57,4 +56,13 @@ checkpoint:
 
 log:
   interval_iter: 10
-  save_file: True
+
+test:
+  dataset: BSD68
+  crop_size: None # [64, 64]
+  add_noise: gau-25 # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
+  mask: bypass # e.g.) None bypass stf_64-rnd
+  normalization: False
+  # power_cliping: 2
+
+  save_image: True

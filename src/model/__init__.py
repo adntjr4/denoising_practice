@@ -22,10 +22,11 @@ model_module_dict = {
                 'CLtoN_D': 'CLtoN',
 
                 # Custom
+                'RBSN': 'RBSN',
                 'NarrowDnCNN': 'DnCNN',
                 'FBSNet': 'FBSNet',
-                'FBSNet_R': 'FBSNet',
-                'FBSNet_9': 'FBSNet',
+                'DBSN_Likelihood': 'DBSN',
+                'DBSN_Cond': 'DBSN'
                 }
 
 def get_model_object(model_name):

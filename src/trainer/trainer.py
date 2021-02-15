@@ -15,7 +15,72 @@ class Trainer(BasicTrainer):
     
     @torch.no_grad()
     def test(self):
-        raise NotImplementedError('TODO')
+        # initializing
+        self._before_test()
+
+        # evaluation mode
+        for m in self.model.values():
+            m.eval() 
+
+        # make directories for image saving
+        if self.test_cfg['save_image']:
+            img_save_path = self.get_dir('img/test_%03d'%self.epoch)
+            os.makedirs(img_save_path, exist_ok=True)
+
+        # validation
+        psnr_sum = 0.
+        psnr_count = 0
+        for idx, data in enumerate(self.test_data_loader):
+            # to device
+            if self.cfg['gpu'] != 'None':
+                for key in data:
+                    data[key] = data[key].cuda()
+
+            # forward
+            input_data = [data[arg] for arg in self.cfg['model_input']]
+            denoised_image = self.model['denoiser'](*input_data)
+
+            # inverse normalize dataset (if normalization is on)
+            if self.test_cfg['normalization']:
+                denoised_image = self.teset_data_set.inverse_normalize(denoised_image, self.cfg['gpu'] != 'None')
+                data = self.test_data_set.inverse_normalize_data(data, self.cfg['gpu'] != 'None')
+
+            # evaluation
+            if 'clean' in data:
+                psnr_value = psnr(denoised_image, data['clean'])
+                psnr_sum += psnr_value
+                psnr_count += 1
+
+            # image save
+            if self.test_cfg['save_image']:
+                # to cpu
+                if 'clean' in data:
+                    clean_img = data['clean'].squeeze().cpu()
+                noisy_img = data[self.cfg['model_input']].squeeze().cpu()
+                denoi_img = denoised_image.squeeze().cpu()
+
+                # write psnr value on file name
+                denoi_name = '%04d_DN_%.2f.png'%(idx, psnr_value) if 'clean' in data else '%04d_DN.png'%idx
+
+                # imwrite
+                if 'clean' in data:
+                    cv2.imwrite(os.path.join(img_save_path, '%04d_CL.png'%idx), tensor2np(clean_img))
+                cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), tensor2np(noisy_img))
+                cv2.imwrite(os.path.join(img_save_path, denoi_name), tensor2np(denoi_img))
+
+            # logger msg
+            status = (' test %03d '%self.epoch).ljust(status_len)
+            if 'clean' in data:
+                self.logger.info('[%s] testing... %04d/%04d. PSNR : %.2f dB'%(status, idx, self.test_data_loader.__len__(), psnr_value))
+            else:
+                self.logger.info('[%s] testing... %04d/%04d.'%(status, idx, self.test_data_loader.__len__()))
+
+        # info 
+        status = (' test %03d '%self.epoch).ljust(status_len) #.center(status_len)
+        if 'clean' in data:
+            self.logger.val('[%s] Done! PSNR : %.2f dB'%(status, psnr_sum/psnr_count))
+        else:
+            self.logger.val('[%s] Done!'%status)
 
     @torch.no_grad()
     def validation(self):
@@ -38,7 +103,17 @@ class Trainer(BasicTrainer):
                     data[key] = data[key].cuda()
 
             # forward
-            denoised_image = self.model['denoiser'](data[self.cfg['model_input']])
+            input_data = [data[arg] for arg in self.cfg['model_input']]
+            model_output = self.model['denoiser'](*input_data)
+
+            # get denoised image
+            if 'likelihood' in self.train_cfg['loss']:
+                c = 1 if model_output.shape[1] == 2 else 3
+                means, variance = model_output[:,:c,:,:], model_output[:,c:,:,:]
+                variance = torch.pow(variance, 2)
+                denoised_image = 1/(1/variance + 1/625) * (1/variance*means+1/625*data[self.cfg['model_input']])
+            else:
+                denoised_image = model_output
 
             # inverse normalize dataset (if normalization is on)
             if self.val_cfg['normalization']:
@@ -56,21 +131,25 @@ class Trainer(BasicTrainer):
                 # to cpu
                 if 'clean' in data:
                     clean_img = data['clean'].squeeze().cpu()
-                noisy_img = data[self.cfg['model_input']].squeeze().cpu()
+                noisy_img = data['real_noisy'] if 'real_noisy' in data else data['syn_noisy']
+                noisy_img = noisy_img.squeeze().cpu()
                 denoi_img = denoised_image.squeeze().cpu()
+
+                # write psnr value on file name
+                denoi_name = '%04d_DN_%.2f.png'%(idx, psnr_value) if 'clean' in data else '%04d_DN.png'%idx
 
                 # imwrite
                 if 'clean' in data:
                     cv2.imwrite(os.path.join(img_save_path, '%04d_CL.png'%idx), tensor2np(clean_img))
                 cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), tensor2np(noisy_img))
-                cv2.imwrite(os.path.join(img_save_path, '%04d_DN.png'%idx), tensor2np(denoi_img))
+                cv2.imwrite(os.path.join(img_save_path, denoi_name), tensor2np(denoi_img))
 
         # info 
         status = ('  val %03d '%self.epoch).ljust(status_len) #.center(status_len)
         if 'clean' in data:
             self.logger.val('[%s] Done! PSNR : %.2f dB'%(status, psnr_sum/psnr_count))
         else:
-            self.logger.val('[%s] Done!')
+            self.logger.val('[%s] Done!'%status)
 
     def _set_module(self):
         module = {}
@@ -85,7 +164,8 @@ class Trainer(BasicTrainer):
 
     def _step(self, data):
         # forward
-        model_output = self.model['denoiser'](data[self.cfg['model_input']])
+        input_data = [data[arg] for arg in self.cfg['model_input']]
+        model_output = self.model['denoiser'](*input_data)
 
         # zero grad
         for opt in self.optimizer.values():

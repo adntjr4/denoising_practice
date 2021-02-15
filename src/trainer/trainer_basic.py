@@ -45,6 +45,7 @@ class BasicTrainer(Output):
         self.cfg = cfg
         self.train_cfg = cfg['training']
         self.val_cfg   = cfg['validation']
+        self.test_cfg  = cfg['test']
         self.ckpt_cfg  = cfg['checkpoint']
 
     def train(self):
@@ -78,6 +79,36 @@ class BasicTrainer(Output):
             self._before_step()
             self._run_step()
             self._after_step()
+
+    def _before_test(self):
+        # initialing
+        self.module = self._set_module()
+
+        # load checkpoint file
+        self.load_checkpoint(self.cfg['ckpt_epoch'])
+        self.epoch = self.cfg['ckpt_epoch'] # for print or saving file name.
+
+        # test dataset loader
+        test_other_args = self._set_other_args(self.test_cfg)
+        self.test_data_set = get_dataset_object(self.test_cfg['dataset'])(crop_size = self.test_cfg['crop_size'], 
+                                                                            add_noise = self.test_cfg['add_noise'],
+                                                                            mask      = self.test_cfg['mask'],
+                                                                            norm      = self.test_cfg['normalization'],
+                                                                            **test_other_args,)
+        self.test_data_loader = DataLoader(dataset=self.test_data_set, batch_size=1, shuffle=False, num_workers=self.cfg['thread'])
+
+        # logger
+        self.logger = Logger()
+
+        # cuda
+        if self.cfg['gpu'] != 'None':
+            # model to GPU
+            self.model = {key: nn.DataParallel(self.module[key]).cuda() for key in self.module}
+        else:
+            self.model = {key: nn.DataParallel(self.module[key]) for key in self.module}
+
+        # start message
+        self.logger.highlight(self.logger.get_start_msg())
 
     def _before_train(self):
         # initialing
@@ -252,8 +283,9 @@ class BasicTrainer(Output):
         self.epoch = saved_checkpoint['epoch']
         for key in self.module:
             self.module[key].load_state_dict(saved_checkpoint['model_weight'][key])
-        for key in self.optimizer:
-            self.optimizer[key].load_state_dict(saved_checkpoint['optimizer_weight'][key])
+        if hasattr(self, 'optimizer'):
+            for key in self.optimizer:
+                self.optimizer[key].load_state_dict(saved_checkpoint['optimizer_weight'][key])
 
     def _checkpoint_name(self, epoch):
         return self.session_name + '_%03d'%epoch + '.pth'

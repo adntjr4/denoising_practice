@@ -1,8 +1,5 @@
-import torch
+import yaml, os
 
-t = torch.randn((2,4))
-
-a, b = torch.split(t, 2, dim=1)
-
-print(a.shape)
-print(b.shape)
+cfg_file = os.path.join('dataset/prep/prep-SIDD_Medium_sRGB-cut512-ov128', 'info_GT', '0-0-ov_br.yml')
+with open(cfg_file) as f:
+    print(yaml.load(f, Loader=yaml.FullLoader))

@@ -36,6 +36,12 @@ My custom repository for multiple Denoising task.
 
 ### Notepad
 
+- DBSN을 그냥 SIDD_val에서 학습.
+- RBSN이 얼마나 바뀌는지 확인
+- laplacian으로 가정하면 얼마나 더 좋아지는지 확인
+- 더 좋아졌을 경우 DND에서 test하여 결과 확인.
+
+
 - DBSN의 장점은 4방향으로 퍼진다는 것이다.
 - EBSN의 장점은 3x3conv를 사용하여 connection이 많고 skip connection이 있는 network를 구성할 수 있다는 것이다.
 - 이 둘의 장점을 합칠 수 있을 것이다.

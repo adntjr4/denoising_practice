@@ -26,11 +26,14 @@ dataset_module = {
                     'SIDD_val'  : 'SIDD',
 
                     # RNI15
-                    'RNI15' : 'RNI15',
+                    'RNI15'     : 'RNI15',
 
                     # DIV2K
                     'DIV2K_train' : 'DIV2K',
                     'DIV2K_val'   : 'DIV2K',
+
+                    # prep
+                    'prep_SIDD' : 'SIDD',
 
                     # pre-generated synthetic noisy image
                     'Synthesized_BSD68_15'   : 'BSD',

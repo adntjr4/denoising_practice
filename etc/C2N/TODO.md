@@ -9,9 +9,14 @@
     - 실험 요망.
     - KL-divergence에 대해서 좀 더 공부.
 
+    - noise 평가 방법.
+
 - 다른 generative noise modeling과 비교
     - noise flow는 코드가 존재하니 SIDD에서 training을 일단 시키기.
     - 다른 model들은 한 번 구현해서 실험해보기
+
+    - 다른 코드 있으면 데이터셋을 바꾸거나, 걔네 셋팅에서 우리것을 바꾸기.
+    - 어떤 paper, 코드가 있는것.
 
 - heteroscedastic gaussian으로 표현 바꾸기
 

@@ -23,6 +23,7 @@ model_module_dict = {
 
                 # Custom
                 'RBSN': 'RBSN',
+                'Conditioned_RBSN': 'RBSN',
                 'NarrowDnCNN': 'DnCNN',
                 'FBSNet': 'FBSNet',
                 'DBSN_Likelihood': 'DBSN',

@@ -21,9 +21,11 @@ class RBSN(nn.Module):
         self.edge_convs = nn.ModuleList([EdgeConv2d(base_ch, base_ch, kernel_size=4*l+9) for l in range(n_layer)])
         self.masked_conv = CenterMaskedConv2d(in_channels=base_ch, out_channels=base_ch, kernel_size=3, stride=1, padding=1)
 
-        self.tail_convs = [nn.Conv2d((n_layer+1)*base_ch, base_ch, kernel_size=1, stride=1, padding=0)]
-        self.tail_convs = self.tail_convs + [nn.Conv2d(base_ch, base_ch, kernel_size=1, stride=1, padding=0) for _ in range(tail_layer-2)]
-        self.tail_convs = self.tail_convs + [nn.Conv2d(base_ch, n_out_ch, kernel_size=1, stride=1, padding=0)]
+        self.tail_convs = [nn.Conv2d((n_layer+1)*base_ch, base_ch, kernel_size=1, stride=1, padding=0), nn.ReLU(inplace=True)]
+        for _ in range(tail_layer-2):
+            self.tail_convs.append(nn.Conv2d(base_ch, base_ch, kernel_size=1, stride=1, padding=0))
+            self.tail_convs.append(nn.ReLU(inplace=True))
+        self.tail_convs.append(nn.Conv2d(base_ch, n_out_ch, kernel_size=1, stride=1, padding=0))
         self.tail_convs = nn.Sequential(*self.tail_convs)
 
     def forward(self, x):
@@ -62,9 +64,11 @@ class Conditioned_RBSN(nn.Module):
         self.blocks = nn.ModuleList([ConditionedResBlock(base_ch, base_ch, n_in_ch) for _ in range(n_block)])
         self.edge_convs = nn.ModuleList([EdgeConv2d(base_ch, base_ch, kernel_size=8*l+13) for l in range(n_block)])
 
-        self.tail_convs = [nn.Conv2d(n_block*base_ch, base_ch, kernel_size=1, stride=1, padding=0)]
-        self.tail_convs = self.tail_convs + [nn.Conv2d(base_ch, base_ch, kernel_size=1, stride=1, padding=0) for _ in range(2)]
-        self.tail_convs = self.tail_convs + [nn.Conv2d(base_ch, n_out_ch, kernel_size=1, stride=1, padding=0)]
+        self.tail_convs = [nn.Conv2d(n_block*base_ch, base_ch, kernel_size=1, stride=1, padding=0), nn.ReLU(inplace=True)]
+        for _ in range(2):
+            self.tail_convs.append(nn.Conv2d(base_ch, base_ch, kernel_size=1, stride=1, padding=0))
+            self.tail_convs.append(nn.ReLU(inplace=True))
+        self.tail_convs.append(nn.Conv2d(base_ch, n_out_ch, kernel_size=1, stride=1, padding=0))
         self.tail_convs = nn.Sequential(*self.tail_convs)
 
     def forward(self, x):
@@ -80,6 +84,47 @@ class Conditioned_RBSN(nn.Module):
 
         return self.tail_convs(results)
 
+class Test_RBSN(nn.Module):
+    def __init__(self, in_ch=1, out_ch=1, base_ch=64, n_block=4):
+        super().__init__()
+
+        self.init_conv11 = nn.Conv2d(in_ch, base_ch, kernel_size=1)
+        self.backbone = nn.Sequential(*[ResBlock(base_ch, kernel_size=3, act='ReLU', bias=True) for _ in range(n_block)])
+        self.edge_conv = EdgeConv2d(base_ch, base_ch, kernel_size=n_block+3)
+
+        self.tail_convs = [nn.Conv2d(base_ch, base_ch, kernel_size=1, stride=1, padding=0)]
+        self.tail_convs = self.tail_convs + [nn.Conv2d(base_ch, base_ch, kernel_size=1, stride=1, padding=0) for _ in range(2)]
+        self.tail_convs = self.tail_convs + [nn.Conv2d(base_ch, n_out_ch, kernel_size=1, stride=1, padding=0)]
+        self.tail_convs = nn.Sequential(*self.tail_convs)
+
+
+    def forward(self, x):
+        x = self.init_conv11(x)
+        x = self.backbone(x)
+        x = 
+
+
+
+
+
+class ResBlock(nn.Module):
+    def __init__(self, n_ch, kernel_size, act, bias):
+        super().__init__()
+
+        layer = []
+        layer.append(nn.Conv2d(n_ch, n_ch, kernel_size=kernel_size, padding=kernel_size//2, bias=bias))
+        if act == 'ReLU':
+            layer.append(nn.ReLU(inplace=True))
+        elif act == 'PReLU':
+            layer.append(nn.PReLU())
+        elif act is not None:
+            raise RuntimeError('undefined activation function %s'%act)
+        layer.append(nn.Conv2d(n_ch, n_ch, kernel_size=kernel_size, padding=kernel_size//2, bias=bias))
+
+        self.body = nn.Sequential(*layer)
+
+    def forward(self, x):
+        return x + self.body(x)
 
 
 class ConditionedResBlock(nn.Module):

@@ -48,6 +48,49 @@ class EBSN(nn.Module):
         
         return x
 
+class EBSN_Wide(nn.Module):
+    def __init__(self, n_in_ch=1, n_out_ch=1, n_ch=64, n_layer=20):
+        super().__init__()
+
+        self.n_layer = n_layer
+        assert n_layer%2 == 0
+        bias = True
+
+        self.init_conv11 = nn.Conv2d(in_channels=n_in_ch, out_channels=n_ch, kernel_size=1, stride=1, padding=0)
+
+        self.body_conv33 = nn.ModuleList([nn.Conv2d(n_ch, n_ch, kernel_size=3, stride=1, padding=1, bias=bias) for _ in range(n_layer)])
+
+        self.blind_spot_conv33 = nn.ModuleList([CentralMaskedConv2d(in_channels=n_ch, out_channels=n_ch, kernel_size=3, stride=1, padding=l+2, dilation=l+2) for l in range(n_layer+1)])
+
+        concat_ch = (n_layer+1)*n_ch
+        self.tail_conv11_0 = Block(concat_ch//1, concat_ch//2, kernel_size=1, bn=True, act='ReLU', bias=bias)
+        self.tail_conv11_1 = Block(concat_ch//2, concat_ch//4, kernel_size=1, bn=True, act='ReLU', bias=bias)
+        self.tail_conv11_2 = Block(concat_ch//4, concat_ch//8, kernel_size=1, bn=True, act='ReLU', bias=bias)
+        self.tail_conv11_3 = Block(concat_ch//8, n_out_ch    , kernel_size=1, bn=False, act= None , bias=bias)
+
+    def forward(self, x):
+        x = self.init_conv11(x)
+
+        concat_tensor = []
+        for layer_idx in range(self.n_layer//2):
+            residual = x
+            concat_tensor.append(self.blind_spot_conv33[2*layer_idx+0](x))
+            x = self.body_conv33[layer_idx](x)
+            concat_tensor.append(self.blind_spot_conv33[2*layer_idx+1](x))
+            x = F.relu(x)
+            x = self.body_conv33[layer_idx](x)
+            x = residual + x
+        concat_tensor.append(self.blind_spot_conv33[self.n_layer](x))
+
+        x = torch.cat(concat_tensor, dim=1)
+
+        x = self.tail_conv11_0(x)
+        x = self.tail_conv11_1(x)
+        x = self.tail_conv11_2(x)
+        x = self.tail_conv11_3(x)
+        
+        return x
+
 class CentralMaskedConv2d(nn.Conv2d):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -77,43 +120,13 @@ class RoundMaskedConv2d(nn.Conv2d):
         self.weight.data *= self.mask
         return super().forward(x)
 
-class EBSN_Round(nn.Module):
-    def __init__(self, n_in_ch=1, n_out_ch=1, n_ch=64, n_layer=20):
-        super().__init__()
-        assert n_ch%2 == 0
+class C_EBSN(EBSN):
+    def __init__(self):
+        super().__init__(n_in_ch=3, n_out_ch=3)
 
-        self.n_layer = n_layer
-        bias = True
-
-        self.init_conv11 = nn.Conv2d(in_channels=n_in_ch, out_channels=n_ch, kernel_size=1, stride=1, padding=0)
-
-        self.body_conv33 = nn.ModuleList([Block(n_ch, n_ch, kernel_size=3, bn=True, act='ReLU', bias=bias) for _ in range(n_layer)])
-
-        self.blind_spot_conv33 = RoundMaskedConv2d(in_channels=n_ch, out_channels=n_ch, kernel_size=3, stride=1, padding=l+1, dilation=l+1)
-
-        concat_ch = (n_layer+1)*n_ch
-        self.tail_conv11_0 = Block(concat_ch//1, concat_ch//2, kernel_size=1, bn=True, act='ReLU', bias=bias)
-        self.tail_conv11_1 = Block(concat_ch//2, concat_ch//4, kernel_size=1, bn=True, act='ReLU', bias=bias)
-        self.tail_conv11_2 = Block(concat_ch//4, concat_ch//8, kernel_size=1, bn=True, act='ReLU', bias=bias)
-        self.tail_conv11_3 = Block(concat_ch//8, n_out_ch    , kernel_size=1, bn=False, act= None , bias=bias)
-
-    def forward(self, x):
-        x = self.init_conv11(x)
-
-        concat_tensor = []
-        for layer_idx in range(self.n_layer):
-            concat_tensor.append(self.blind_spot_conv33[layer_idx](x))
-            x = self.body_conv33[layer_idx](x)
-        concat_tensor.append(self.blind_spot_conv33[self.n_layer](x))
-
-        x = torch.cat(concat_tensor, dim=1)
-
-        x = self.tail_conv11_0(x)
-        x = self.tail_conv11_1(x)
-        x = self.tail_conv11_2(x)
-        x = self.tail_conv11_3(x)
-        
-        return x
+class C_EBSN_Wide(EBSN_Wide):
+    def __init__(self):
+        super().__init__(n_in_ch=3, n_out_ch=3)
 
 if __name__ == "__main__":
     model = EBSN()

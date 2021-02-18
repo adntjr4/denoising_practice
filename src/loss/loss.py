@@ -16,7 +16,7 @@ class Loss(nn.Module):
                 loss_function = nn.L1Loss(reduction='mean')
             elif name == 'L2' or name == 'self_L2' or name == 'nlf_L2':
                 loss_function = nn.MSELoss(reduction='mean')
-            elif name == 'self_likelihood' or name == 'WGAN_D' or name == 'WGAN_G':
+            elif name == 'self_Gau_likelihood' or name == 'self_Lap_likelihood' or name == 'WGAN_D' or name == 'WGAN_G':
                 loss_function = None
             elif name == 'GP':
                 loss_function = gradient_penalty
@@ -41,11 +41,12 @@ class Loss(nn.Module):
             elif name == 'nlf_L1' or name == 'nlf_L2':
                 pass
 
-
-            elif name == 'self_likelihood':
+            elif name == 'self_Gau_likelihood':
                 self_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
-                c = 1 if model_output.shape[1] == 2 else 3
-                means, variance = model_output[:,:c,:,:], model_output[:,c:,:,:]
+
+                c = model_output.shape[1]//2
+                means, variance, nlf = model_output
+
                 variance = torch.pow(variance, 2) + 625
 
                 loss = torch.pow(self_noisy-means, 2) / variance + torch.log(variance)

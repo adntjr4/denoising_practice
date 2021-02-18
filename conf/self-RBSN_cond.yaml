@@ -1,5 +1,5 @@
 
-model: Conditioned_RBSN
+model: RBSN_cond
 
 model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 

@@ -12,22 +12,30 @@ model_module_dict = {
 
                 # D-BSN
                 'DBSN': 'DBSN',
-                'C_BSN': 'DBSN',
+                'C_DBSN': 'DBSN',
 
                 # Effective Blind-Spot Network
                 'EBSN' : 'EBSN',
+                'C_EBSN' : 'EBSN',
 
                 # CLtoN
                 'CLtoN_G': 'CLtoN',
                 'CLtoN_D': 'CLtoN',
 
                 # Custom
-                'RBSN': 'RBSN',
-                'Conditioned_RBSN': 'RBSN',
+                'RBSN_sep': 'RBSN',
+                'C_RBSN_sep': 'RBSN',
+                'RBSN_cond': 'RBSN',
                 'NarrowDnCNN': 'DnCNN',
                 'FBSNet': 'FBSNet',
                 'DBSN_Likelihood': 'DBSN',
-                'DBSN_Cond': 'DBSN'
+                'DBSN_Cond': 'DBSN',
+
+                # temporal networks
+                'EBSN_Edge': 'RBSN',
+                'DBSN_Alt': 'DBSN',
+                'EBSN_Wide': 'EBSN',
+                'C_EBSN_Wide': 'EBSN',
                 }
 
 def get_model_object(model_name):

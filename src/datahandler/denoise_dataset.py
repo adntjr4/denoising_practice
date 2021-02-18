@@ -183,6 +183,9 @@ class DenoiseDataSet(Dataset):
     def _load_img(self, img_name, gray=False):
         img = cv2.imread(img_name, -1)
         assert img is not None, "failure on loading image - %s"%img_name
+        return self._load_img_from_np(img, gray)
+
+    def _load_img_from_np(self, img, gray=False):
         if len(img.shape) != 2:
             if gray:
                 # follows definition of sRBG in terms of the CIE 1931 linear luminance.
@@ -320,9 +323,11 @@ class DenoiseDataSet(Dataset):
         if add_noise_type == 'bypass':
             # bypass clean image
             synthesized_img = clean_img
+
         elif add_noise_type == 'uni':
             # add uniform noise
             synthesized_img = clean_img + 2*opt[0] * torch.rand(clean_img.shape) - opt[0]
+
         elif add_noise_type == 'gau':
             # add AWGN
             nlf = opt[0]
@@ -332,15 +337,20 @@ class DenoiseDataSet(Dataset):
             # add blind gaussian noise
             nlf = random.uniform(opt[0], opt[1])
             synthesized_img = clean_img + torch.normal(mean=0., std=nlf, size=clean_img.shape)
+
         elif add_noise_type == 'struc_gau':
+            # add structured gaussian noise (saw in the paper "Noiser2Noise": https://arxiv.org/pdf/1910.11908.pdf)
+            # TODO: is this gaussian filter correct?
             gau_noise = torch.normal(mean=0., std=opt[0], size=clean_img.shape)
             struc_gau = torch.Tensor(gaussian_filter(gau_noise, sigma=1))*9
             synthesized_img = clean_img + struc_gau
+
         elif add_noise_type == 'het_gau':
             # add heteroscedastic  guassian noise
             poi_gau_std = (clean_img * (opt[0]**2) + torch.ones(clean_img.shape) * (opt[1]**2)).sqrt()
             nlf = poi_gau_std
             synthesized_img = clean_img + torch.normal(mean=0., std=nlf)
+
         else:
             raise RuntimeError('undefined additive noise type : %s'%add_noise_type)
 

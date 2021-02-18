@@ -36,6 +36,11 @@ My custom repository for multiple Denoising task.
 
 ### Notepad
 
+- sRGB 이미지가 학습이 안 되는 이유는 주변 픽셀(inner 2 pixel range)들로부터 demosaic function을 학습하여 원본 pixel을 유추할 수 있기 때문일 것이다.
+    -> 그러면 spatial한 noise는 되는 가?
+- 그러면 처음 center masked conv는 초기 feature를 얻기 위함인데, 이것을 feature로 사용하여 conditioned로 넣어주면 유추는 할 수 없으면서 feature는 넘길 수 있지 않을끼?
+- conditional branch로 학습이 안 되게 막는 것은 얻고난 feature 쪽으로 grad가 못하게 detach()하면 될듯.
+
 - DBSN을 그냥 SIDD_val에서 학습.
 - RBSN이 얼마나 바뀌는지 확인
 - laplacian으로 가정하면 얼마나 더 좋아지는지 확인

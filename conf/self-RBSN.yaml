@@ -1,17 +1,17 @@
 
-model: RBSN
+model: EBSN_Edge
 
 model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 
 training:
-  #dataset: BSD432
   dataset: Synthesized_BSD432_25
+  #dataset: SIDD_val
   add_noise: None # e.g.) None bypass uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
   mask: bypass # e.g.) None bypass stf_0.7-rnd
   crop_size: [128, 128]
   aug: ['hflip', 'rot']
   normalization: False
-  n_repeat: 12
+  n_repeat: 4
   
   batch_size: 16
 
@@ -37,6 +37,7 @@ training:
 
 validation:
   dataset: BSD68
+  #dataset: SIDD_val
   crop_size: None # [64, 64]
   add_noise: gau-25.-clamp # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: bypass # e.g.) None bypass stf_64-rnd

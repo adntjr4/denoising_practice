@@ -17,16 +17,4 @@ config="self-DBSN-likelihood"
 ###################
 
 cd ..
-if [ $resume == "True" ]
-then
-  python train.py --session_name $session \
-                  --config $config \
-                  --resume \
-                  --gpu $gpu_id \
-                  --thread $n_thread
-else
-  python train.py --session_name $session \
-                  --config $config \
-                  --gpu $gpu_id \
-                  --thread $n_thread
-fi
+python train.py --session_name $session --config $config --resume $resume --gpu $gpu_id --thread $n_thread

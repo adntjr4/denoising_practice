@@ -11,8 +11,8 @@ done
 
 ##### Setting #####
 
-session="self-N2V_base_DnCNN"
-config="self-N2V"
+session="self-DBSN-alt"
+config="self-DBSN-alt"
 
 ###################
 

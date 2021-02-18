@@ -11,7 +11,7 @@ done
 
 ##### Setting #####
 
-session="self-EBSN_Wide-SIDD"
+session="self-EBSN"
 config="self-EBSN"
 
 ###################

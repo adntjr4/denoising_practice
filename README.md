@@ -33,6 +33,9 @@ My custom repository for multiple Denoising task.
     - [x] Add validation image out
     - [x] Add training process for self-supervised manner
 
+### 추가적으로 만들고 싶은 것.
+
+- training을 시킬 때, model code도 같이 저장. (+ 나중에 test할 때 이걸로도 하는 방법.)
 
 ### Notepad
 

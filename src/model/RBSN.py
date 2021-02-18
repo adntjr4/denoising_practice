@@ -108,8 +108,9 @@ class RBSN_FS(nn.Module):
         cat_ch = 2*n_block*base_ch
         self.gather_tail = nn.Conv2d(cat_ch, base_ch, kernel_size=1)
         self.tail = []
-        for _ in range(4):
-            self.tail.append([nn.ReLU(inplace=True), nn.Conv2d(base_ch, base_ch, kernel_size=1)])
+        for _ in range(3):
+            self.tail += [nn.ReLU(inplace=True), nn.Conv2d(base_ch, base_ch, kernel_size=1)]
+        self.tail += [nn.ReLU(inplace=True), nn.Conv2d(base_ch, out_ch, kernel_size=1)]
         self.tail = nn.Sequential(*self.tail)
 
     def forward(self, x):
@@ -125,51 +126,57 @@ class RBSN_FS(nn.Module):
         x = self.gather_tail(torch.cat(results, dim=1))
         x = self.tail(x)
 
-# class EBSN_Edge(nn.Module):
-    def __init__(self, n_in_ch=1, n_out_ch=1, n_ch=64, n_layer=20):
-        super().__init__()
-
-        self.n_layer = n_layer
-        assert n_layer%2 == 0
-        bias = True
-
-        self.init_conv11 = nn.Conv2d(in_channels=n_in_ch, out_channels=n_ch, kernel_size=1, stride=1, padding=0)
-
-        self.body_conv33 = nn.ModuleList([nn.Conv2d(n_ch, n_ch, kernel_size=3, stride=1, padding=1, bias=bias) for _ in range(n_layer)])
-
-        self.blind_spot_conv33 = nn.ModuleList([EdgeConv2d(n_ch, n_ch, kernel_size=2*l+3) for l in range(n_layer+1)])
-
-        concat_ch = (n_layer+1)*n_ch
-        self.tail_conv11_0 = Block(concat_ch//1, concat_ch//2, kernel_size=1, bn=True, act='ReLU', bias=bias)
-        self.tail_conv11_1 = Block(concat_ch//2, concat_ch//4, kernel_size=1, bn=True, act='ReLU', bias=bias)
-        self.tail_conv11_2 = Block(concat_ch//4, concat_ch//8, kernel_size=1, bn=True, act='ReLU', bias=bias)
-        self.tail_conv11_3 = Block(concat_ch//8, n_out_ch    , kernel_size=1, bn=False, act= None , bias=bias)
-
-    def forward(self, x):
-        x = self.init_conv11(x)
-
-        concat_tensor = []
-        for layer_idx in range(self.n_layer//2):
-            residual = x
-            concat_tensor.append(self.blind_spot_conv33[2*layer_idx+0](x))
-            x = self.body_conv33[layer_idx](x)
-            concat_tensor.append(self.blind_spot_conv33[2*layer_idx+1](x))
-            x = F.relu(x)
-            x = self.body_conv33[layer_idx](x)
-            x = residual + x
-        concat_tensor.append(self.blind_spot_conv33[self.n_layer](x))
-
-        x = torch.cat(concat_tensor, dim=1)
-
-        x = self.tail_conv11_0(x)
-        x = self.tail_conv11_1(x)
-        x = self.tail_conv11_2(x)
-        x = self.tail_conv11_3(x)
-        
         return x
+
+# region - EBSN_Edge
+# class EBSN_Edge(nn.Module):
+#     def __init__(self, n_in_ch=1, n_out_ch=1, n_ch=64, n_layer=20):
+#         super().__init__()
+
+#         self.n_layer = n_layer
+#         assert n_layer%2 == 0
+#         bias = True
+
+#         self.init_conv11 = nn.Conv2d(in_channels=n_in_ch, out_channels=n_ch, kernel_size=1, stride=1, padding=0)
+
+#         self.body_conv33 = nn.ModuleList([nn.Conv2d(n_ch, n_ch, kernel_size=3, stride=1, padding=1, bias=bias) for _ in range(n_layer)])
+
+#         self.blind_spot_conv33 = nn.ModuleList([EdgeConv2d(n_ch, n_ch, kernel_size=2*l+3) for l in range(n_layer+1)])
+
+#         concat_ch = (n_layer+1)*n_ch
+#         self.tail_conv11_0 = Block(concat_ch//1, concat_ch//2, kernel_size=1, bn=True, act='ReLU', bias=bias)
+#         self.tail_conv11_1 = Block(concat_ch//2, concat_ch//4, kernel_size=1, bn=True, act='ReLU', bias=bias)
+#         self.tail_conv11_2 = Block(concat_ch//4, concat_ch//8, kernel_size=1, bn=True, act='ReLU', bias=bias)
+#         self.tail_conv11_3 = Block(concat_ch//8, n_out_ch    , kernel_size=1, bn=False, act= None , bias=bias)
+
+#     def forward(self, x):
+#         x = self.init_conv11(x)
+
+#         concat_tensor = []
+#         for layer_idx in range(self.n_layer//2):
+#             residual = x
+#             concat_tensor.append(self.blind_spot_conv33[2*layer_idx+0](x))
+#             x = self.body_conv33[layer_idx](x)
+#             concat_tensor.append(self.blind_spot_conv33[2*layer_idx+1](x))
+#             x = F.relu(x)
+#             x = self.body_conv33[layer_idx](x)
+#             x = residual + x
+#         concat_tensor.append(self.blind_spot_conv33[self.n_layer](x))
+
+#         x = torch.cat(concat_tensor, dim=1)
+
+#         x = self.tail_conv11_0(x)
+#         x = self.tail_conv11_1(x)
+#         x = self.tail_conv11_2(x)
+#         x = self.tail_conv11_3(x)
+        
+#         return x
+# endregion
 
 class RBSN_FS_Block(nn.Module):
     def __init__(self, base_ch, block_idx, center_hole=1):
+        super().__init__()
+        
         self.base_ch = base_ch
 
         # for conditional branch
@@ -329,17 +336,17 @@ class EdgeConv2d(nn.Module):
 
 
 if __name__ == '__main__':
-    # verification of EdgeConv2d
-    lc = LinearMaskedConv2d(True, in_channels=1, out_channels=1, kernel_size=3, stride=1, padding=2, dilation=2, bias=False)
-    hl = nn.Conv2d(1, 1, kernel_size=(1, 5), stride=1, padding=(0,2), bias=False)
-    ec = EdgeConv2d(1, 1, kernel_size=5, bias=False)
-    i = torch.zeros((1,1,5,5))
-    i[:,:,1,0] = 1
-    print(i)
-    print(ec(i))
+    # # verification of EdgeConv2d
+    # lc = LinearMaskedConv2d(True, in_channels=1, out_channels=1, kernel_size=3, stride=1, padding=2, dilation=2, bias=False)
+    # hl = nn.Conv2d(1, 1, kernel_size=(1, 5), stride=1, padding=(0,2), bias=False)
+    # ec = EdgeConv2d(1, 1, kernel_size=5, bias=False)
+    # i = torch.zeros((1,1,5,5))
+    # i[:,:,1,0] = 1
+    # print(i)
+    # print(ec(i))
 
-    # model = Test_RBSN()
-    # images = torch.randn((16,1,64,64))
-    # print(model(images).shape)
+    model = RBSN_FS()
+    images = torch.randn((16,3,64,64))
+    print(model(images).shape)
 
 

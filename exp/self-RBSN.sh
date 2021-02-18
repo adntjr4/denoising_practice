@@ -11,7 +11,7 @@ done
 
 ##### Setting #####
 
-session="self-RBSN_Test"
+session="self-RBSN_FS"
 config="self-RBSN"
 
 ###################

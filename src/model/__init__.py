@@ -26,6 +26,7 @@ model_module_dict = {
                 'RBSN_sep': 'RBSN',
                 'C_RBSN_sep': 'RBSN',
                 'RBSN_cond': 'RBSN',
+                'RBSN_FS': 'RBSN',
                 'NarrowDnCNN': 'DnCNN',
                 'FBSNet': 'FBSNet',
                 'DBSN_Likelihood': 'DBSN',

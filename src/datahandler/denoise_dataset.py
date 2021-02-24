@@ -32,8 +32,9 @@ dataset_module = {
                     'DIV2K_train' : 'DIV2K',
                     'DIV2K_val'   : 'DIV2K',
 
-                    # prep
+                    # prep & part
                     'prep_SIDD' : 'SIDD',
+                    'part_SIDD' : 'SIDD',
 
                     # pre-generated synthetic noisy image
                     'Synthesized_BSD68_15'   : 'BSD',
@@ -48,6 +49,9 @@ dataset_module = {
                     'Synthesized_CBSD432_15' : 'BSD',
                     'Synthesized_CBSD432_25' : 'BSD',
                     'Synthesized_CBSD432_50' : 'BSD',
+
+                    'Synthesized_BSD432_25_struc'  : 'BSD',
+
                 }
 
 def get_dataset_object(dataset_name):
@@ -342,7 +346,7 @@ class DenoiseDataSet(Dataset):
             # add structured gaussian noise (saw in the paper "Noiser2Noise": https://arxiv.org/pdf/1910.11908.pdf)
             # TODO: is this gaussian filter correct?
             gau_noise = torch.normal(mean=0., std=opt[0], size=clean_img.shape)
-            struc_gau = torch.Tensor(gaussian_filter(gau_noise, sigma=1))*9
+            struc_gau = torch.Tensor(gaussian_filter(gau_noise, sigma=1))
             synthesized_img = clean_img + struc_gau
 
         elif add_noise_type == 'het_gau':

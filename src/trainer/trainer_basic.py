@@ -22,15 +22,14 @@ class BasicTrainer(Output):
     def validation(self):
         raise NotImplementedError('define this function for each trainer')
     def _set_module(self):
+        # return dict form with model name.
         raise NotImplementedError('define this function for each trainer')
     def _set_optimizer(self):
+        # return dict form with each coresponding model name.
         raise NotImplementedError('define this function for each trainer')
     def _step(self, data):
+        # forward, backward, step, return loss values for print.
         raise NotImplementedError('define this function for each trainer')
-    '''
-    def add_data_set(self):
-        # use this function to add more data set.
-    '''
 
     # =================================================================== #
 
@@ -67,12 +66,16 @@ class BasicTrainer(Output):
     def _warmup(self):
         self.status = 'warmup'.ljust(status_len) #.center(status_len)
 
-        self.train_data_loader_iter = iter(self.train_data_loader)
+        # make dataloader iterable.
+        self.train_dataloader_iter = {}
+        for key in self.train_dataloader:
+            self.train_dataloader_iter[key] = iter(self.train_dataloader[key])
+
         warmup_iter = self.train_cfg['warmup_iter']
-        if warmup_iter > self.train_data_loader.__len__():
+        if warmup_iter > self.max_iter:
             self.logger.info('currently warmup support 1 epoch as maximum. warmup iter is replaced to 1 epoch iteration. %d -> %d' \
-                % (warmup_iter, self.train_data_loader.__len__()))
-            warmup_iter = self.train_data_loader.__len__()
+                % (warmup_iter, self.max_iter))
+            warmup_iter = self.max_iter
 
         for self.iter in range(1, warmup_iter+1):
             self._adjust_warmup_lr(warmup_iter)
@@ -89,13 +92,7 @@ class BasicTrainer(Output):
         self.epoch = self.cfg['ckpt_epoch'] # for print or saving file name.
 
         # test dataset loader
-        test_other_args = self._set_other_args(self.test_cfg)
-        self.test_data_set = get_dataset_object(self.test_cfg['dataset'])(crop_size = self.test_cfg['crop_size'], 
-                                                                            add_noise = self.test_cfg['add_noise'],
-                                                                            mask      = self.test_cfg['mask'],
-                                                                            norm      = self.test_cfg['normalization'],
-                                                                            **test_other_args,)
-        self.test_data_loader = DataLoader(dataset=self.test_data_set, batch_size=1, shuffle=False, num_workers=self.cfg['thread'])
+        self.test_dataloader = self._set_dataloader(self.test_cfg, batch_size=1, shuffle=False, num_workers=self.cfg['thread'])
 
         # logger
         self.logger = Logger()
@@ -115,34 +112,17 @@ class BasicTrainer(Output):
         self.module = self._set_module()
 
         # training dataset loader
-        train_other_args = self._set_other_args(self.train_cfg)
-        self.train_data_set = get_dataset_object(self.train_cfg['dataset'])(crop_size = self.train_cfg['crop_size'], 
-                                                                            add_noise = self.train_cfg['add_noise'], 
-                                                                            mask      = self.train_cfg['mask'],
-                                                                            aug       = self.train_cfg['aug'],
-                                                                            norm      = self.train_cfg['normalization'],
-                                                                            n_repeat  = self.train_cfg['n_repeat'],
-                                                                            **train_other_args,)
-        self.train_data_loader = DataLoader(dataset=self.train_data_set, batch_size=self.train_cfg['batch_size'], shuffle=True, num_workers=self.cfg['thread'])
-
-        if hasattr(self, 'add_data_set'):
-            # custom function for adding more data set.
-            self.add_data_set()
+        self.train_dataloader = self._set_dataloader(self.train_cfg, batch_size=self.train_cfg['batch_size'], shuffle=True, num_workers=self.cfg['thread'])
 
         # validation dataset loader
         if self.val_cfg['val']:
-            val_other_args = self._set_other_args(self.val_cfg)
-            self.val_data_set = get_dataset_object(self.val_cfg['dataset'])(crop_size = self.val_cfg['crop_size'], 
-                                                                            add_noise = self.val_cfg['add_noise'],
-                                                                            mask      = self.val_cfg['mask'],
-                                                                            norm      = self.val_cfg['normalization'],
-                                                                            **val_other_args,)
-            self.val_data_loader   = DataLoader(dataset=self.val_data_set, batch_size=1, shuffle=False, num_workers=self.cfg['thread'])
+            self.val_dataloader = self._set_dataloader(self.val_cfg, batch_size=1, shuffle=False, num_workers=self.cfg['thread'])
 
         # other configuration
         self.max_epoch = self.train_cfg['max_epoch']
         self.epoch = self.start_epoch = 1
-        self.max_iter = math.ceil(self.train_data_loader.dataset.__len__() / self.train_cfg['batch_size'])
+        max_len = max([self.train_dataloader[key].dataset.__len__() for key in self.train_dataloader])
+        self.max_iter = math.ceil(max_len / self.train_cfg['batch_size'])
 
         self.loss = Loss(self.train_cfg['loss'])
         self.loss_dict = self.loss.get_loss_dict_form()
@@ -192,8 +172,10 @@ class BasicTrainer(Output):
     def _before_epoch(self):
         self.status = ('epoch %03d/%03d'%(self.epoch, self.max_epoch)).center(status_len)
 
-        # dataloader iter
-        self.train_data_loader_iter = iter(self.train_data_loader)
+        # make dataloader iterable.
+        self.train_dataloader_iter = {}
+        for key in self.train_dataloader:
+            self.train_dataloader_iter[key] = iter(self.train_dataloader[key])
 
         # model training mode
         for m in self.model.values():
@@ -226,12 +208,15 @@ class BasicTrainer(Output):
 
     def _run_step(self):
         # get data (data should be dictionary of Tensors)
-        data = next(self.train_data_loader_iter)
+        data = {}
+        for key in self.train_dataloader_iter:
+            data[key] = next(self.train_dataloader_iter[key])
 
         # to device
         if self.cfg['gpu'] != 'None':
-            for key in data:
-                data[key] = data[key].cuda()
+            for dataset_key in data:
+                for key in data[dataset_key]:
+                    data[dataset_key][key] = data[dataset_key][key].cuda()
 
         # step (forward, cal losses, backward)
         losses = self._step(data) # forward, losses, backward
@@ -300,6 +285,25 @@ class BasicTrainer(Output):
         for first_optim in self.optimizer.values():
             for param_group in first_optim.param_groups:
                 return param_group['lr']
+
+    def _set_dataloader(self, dataset_cfg, batch_size, shuffle, num_workers):
+        dataloader = {}
+        dataset_dict = dataset_cfg['dataset']
+        if not isinstance(dataset_dict, dict):
+            dataset_dict = {'dataset': dataset_dict}
+
+        other_args = self._set_other_args(dataset_cfg)
+        for key in dataset_dict:
+            dataset = get_dataset_object(dataset_dict[key])(crop_size = dataset_cfg['crop_size'], 
+                                                            add_noise = dataset_cfg['add_noise'], 
+                                                            mask      = dataset_cfg['mask'],
+                                                            aug       = dataset_cfg['aug'] if hasattr(dataset_cfg, 'aug') else None,
+                                                            norm      = dataset_cfg['normalization'],
+                                                            n_repeat  = dataset_cfg['n_repeat'] if hasattr(dataset_cfg, 'aug') else 1,
+                                                            **other_args,)
+            dataloader[key] = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+
+        return dataloader
 
     def _set_one_optimizer(self, parameters):
         opt = self.train_cfg['optimizer']

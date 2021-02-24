@@ -3,6 +3,8 @@ model: FBSNet
 
 model_input: [real_noisy] # e.g.) real_noisy, syn_noisy, masked, clean
 
+trainer: Trainer
+
 training:
   dataset: Synthesized_BSD432_25
   add_noise: gau-25. # e.g.) None uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py

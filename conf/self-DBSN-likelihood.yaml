@@ -3,6 +3,8 @@ model: DBSN_Likelihood
 
 model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 
+trainer: Trainer
+
 training:
   #dataset: BSD432
   dataset: Synthesized_BSD432_25

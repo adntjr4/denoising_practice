@@ -7,21 +7,22 @@ import torch.autograd as autograd
 class Loss(nn.Module):
     def __init__(self, loss_string):
         super().__init__()
+        loss_string = loss_string.replace(' ', '')
 
         self.loss_list = []
         for single_loss in loss_string.split('+'):
             weight, name = single_loss.split('*')
 
-            if name == 'L1' or name == 'self_L1' or name == 'nlf_L1':
+            if name in ['L1', 'self_L1', 'nlf_L1', 'batch_zero_mean']:
                 loss_function = nn.L1Loss(reduction='mean')
-            elif name == 'L2' or name == 'self_L2' or name == 'nlf_L2':
+            elif name in ['L2', 'self_L2', 'nlf_L2']:
                 loss_function = nn.MSELoss(reduction='mean')
-            elif name == 'self_Gau_likelihood' or name == 'self_Lap_likelihood' or name == 'WGAN_D' or name == 'WGAN_G':
+            elif name in ['self_Gau_likelihood', 'self_Lap_likelihood', 'WGAN_D', 'WGAN_G']:
                 loss_function = None
             elif name == 'GP':
                 loss_function = gradient_penalty
             else:
-                raise RuntimeError('ambiguious loss term: {}'.format(name))
+                raise RuntimeError('undefined loss term: {}'.format(name))
 
             self.loss_list.append({'name': name,
                                    'weight': float(weight),
@@ -30,7 +31,13 @@ class Loss(nn.Module):
     def forward(self, model_output, data, loss_name=None):
         losses = {}
         for single_loss in self.loss_list:
-            name = single_loss['name'] if loss_name is None else loss_name
+            name = single_loss['name']
+            
+            # this makes calculate only specific loss.
+            if loss_name is not None:
+                if loss_name != name:
+                    continue
+
             if name == 'L1' or name == 'L2':
                 losses[name] = single_loss['weight'] * single_loss['func'](model_output, data['clean'])
 
@@ -58,14 +65,18 @@ class Loss(nn.Module):
                 losses[name] = single_loss['weight'] * (torch.mean(D_fake)-torch.mean(D_real))
 
             elif name == 'WGAN_G':
-                losses[name] = single_loss['weight'] * -torch.mean(model_output)
-                
+                D_fake_for_G = model_output
+                losses[name] = single_loss['weight'] * -torch.mean(D_fake_for_G)
+            
+            elif name == 'batch_zero_mean':
+                generated_noise_maps = model_output
+                batch_mean = torch.mean(generated_noise_maps, dim=(0,2,3), keepdim=False)
+                losses[name] = single_loss['weight'] * single_loss['func'](batch_mean, torch.zeros_like(batch_mean))
+
             elif name == 'GP':
                 D_inter, img_inter = model_output
                 losses[name] = single_loss['weight'] * single_loss['func'](D_inter, img_inter)
 
-            if loss_name is not None:
-                return losses
         return losses
 
     def get_loss_dict_form(self):

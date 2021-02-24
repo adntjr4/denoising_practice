@@ -82,7 +82,7 @@ class CLtoN_G(nn.Module):
 
     def forward(self, img_CL, rand_vec=None):
         (N, C, H, W) = img_CL.size()
-        model_on_cuda = next(self.parameters()).is_cuda
+        # TODO: make model can run on CPU - (rand_vec_map, feat_noise_dep)
 
         # random vector (is None sample it)
         if rand_vec is None:
@@ -90,8 +90,7 @@ class CLtoN_G(nn.Module):
 
         # random vector repeat (to same device)
         rand_vec_map = rand_vec.unsqueeze(-1).unsqueeze(-1).repeat(1,1,H,W)
-        if model_on_cuda:
-            rand_vec_map = rand_vec_map.cuda()
+        rand_vec_map = rand_vec_map.cuda()
 
         # feat extractor
         list_cat = [img_CL, rand_vec_map]
@@ -99,8 +98,7 @@ class CLtoN_G(nn.Module):
 
         # make initial dep noise feature
         feat_noise_dep = torch_distb.Normal(loc=feat_CL[:,:self.n_ch,:,:], scale=feat_CL[:,self.n_ch:,:,:]).rsample()
-        if model_on_cuda:
-            feat_noise_dep = feat_noise_dep.cuda()
+        feat_noise_dep = feat_noise_dep.cuda()
 
         # pipe-dep
         feat_noise_dep = self.pipe_dep_1(feat_noise_dep) + \

@@ -11,7 +11,7 @@ done
 
 ##### Setting #####
 
-session="self-DBSN-SIDD"
+session="self-DBSN-struc"
 config="self-DBSN"
 
 ###################

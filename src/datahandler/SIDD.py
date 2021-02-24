@@ -41,7 +41,7 @@ class SIDD(DenoiseDataSet):
         clean_img = self._load_img(info['clean_img_path'])
         noisy_img = self._load_img(info['noisy_img_path'])
 
-        return {'clean': clean_img, 'real_noisy': noisy_img, 'instances': info['instances'] }
+        return {'clean': clean_img, 'real_noisy': noisy_img,} #'instances': info['instances'] }
 
     def _parse_folder_name(self, name):
         parsed = {}
@@ -76,7 +76,35 @@ class prep_SIDD(DenoiseDataSet):
         clean_img = self._load_img(os.path.join(self.dataset_path, 'GT', file_name))
         noisy_img = self._load_img(os.path.join(self.dataset_path, 'N' , file_name))
 
-        return {'clean': clean_img, 'real_noisy': noisy_img, 'instances': instance }
+        return {'clean': clean_img, 'real_noisy': noisy_img,} #'instances': instance }
+
+    def _get_instance(self, name):
+        with open(os.path.join(self.dataset_path, 'info_GT', name+'.yml')) as f:
+            instance = yaml.load(f, Loader=yaml.FullLoader)
+        return instance
+
+class part_SIDD(DenoiseDataSet):
+    '''
+    part of SIDD dataset class for using prepared SIDD data from GeunWung.
+    here we use part_SIDD_Medium_sRGB
+    '''
+    def __init__(self, add_noise=None, mask=None, crop_size=None, aug=None, n_repeat=1, **kwargs):
+        super().__init__(add_noise=add_noise, mask=mask, crop_size=crop_size, aug=aug, n_repeat=n_repeat, **kwargs)
+
+    def _scan(self):
+        self.dataset_path = os.path.join(self.dataset_dir, 'part_SIDD_Medium_sRGB')
+
+        for root, _, files in os.walk(os.path.join(self.dataset_path, 'GT')):
+            self.img_paths = files
+
+    def _load_data(self, data_idx):
+        file_name = self.img_paths[data_idx]
+
+        instance  = self._get_instance(file_name.replace('.png', ''))
+        clean_img = self._load_img(os.path.join(self.dataset_path, 'GT', file_name))
+        noisy_img = self._load_img(os.path.join(self.dataset_path, 'N' , file_name))
+
+        return {'clean': clean_img, 'real_noisy': noisy_img,} #'instances': instance }
 
     def _get_instance(self, name):
         with open(os.path.join(self.dataset_path, 'info_GT', name+'.yml')) as f:

@@ -11,7 +11,7 @@ done
 
 ##### Setting #####
 
-session="self-EBSN"
+session="self-EBSN_Wide"
 config="self-EBSN"
 
 ###################

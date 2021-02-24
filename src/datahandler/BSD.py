@@ -121,3 +121,7 @@ class Synthesized_CBSD432_25(Synthesized_BSD):
 class Synthesized_CBSD432_50(Synthesized_BSD):
     def __init__(self, **kwargs):
         super().__init__(folder_name='CBSD432_50', **kwargs)
+
+class Synthesized_BSD432_25_struc(Synthesized_BSD):
+    def __init__(self, **kwargs):
+        super().__init__(folder_name='BSD432_25_s', **kwargs)

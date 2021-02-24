@@ -1,9 +1,10 @@
 import argparse, os
+from importlib import import_module
 
 import torch
 
 from src.util.config_parse import ConfigParser
-from src.trainer.trainer import Trainer
+import src.trainer.trainer as Trainer
 
 
 def main():
@@ -27,7 +28,7 @@ def main():
         os.environ['CUDA_VISIBLE_DEVICES'] = cfg['gpu']
 
     # intialize trainer
-    trainer = Trainer(cfg)
+    trainer = getattr(Trainer, cfg['trainer'])(cfg)
 
     # train
     trainer.train()

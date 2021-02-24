@@ -1,7 +1,5 @@
 import torch
 
-t = torch.randn((2,4))
+t = torch.rand((5,2))
 
-print(t)
-print(t[:,1:])
-print(t[:,:-1])
+print(torch.mean(t, dim=1, keepdim=True)

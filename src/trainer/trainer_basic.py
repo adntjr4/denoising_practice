@@ -297,9 +297,9 @@ class BasicTrainer(Output):
             dataset = get_dataset_object(dataset_dict[key])(crop_size = dataset_cfg['crop_size'], 
                                                             add_noise = dataset_cfg['add_noise'], 
                                                             mask      = dataset_cfg['mask'],
-                                                            aug       = dataset_cfg['aug'] if hasattr(dataset_cfg, 'aug') else None,
+                                                            aug       = dataset_cfg['aug'] if 'aug' in dataset_cfg else None,
                                                             norm      = dataset_cfg['normalization'],
-                                                            n_repeat  = dataset_cfg['n_repeat'] if hasattr(dataset_cfg, 'aug') else 1,
+                                                            n_repeat  = dataset_cfg['n_repeat'] if 'n_repeat' in dataset_cfg else 1,
                                                             **other_args,)
             dataloader[key] = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
 
@@ -340,8 +340,8 @@ class BasicTrainer(Output):
 
     def _set_other_args(self, cfg):
         other_args = {}
-        if 'power_cliping' in cfg:
-            other_args['power_cliping'] = cfg['power_cliping']
+        if 'multiple_cliping' in cfg:
+            other_args['multiple_cliping'] = cfg['multiple_cliping']
         if 'keep_on_mem' in cfg:
             other_args['keep_on_mem'] = cfg['keep_on_mem']
         return other_args

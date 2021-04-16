@@ -17,7 +17,7 @@ class Loss(nn.Module):
                 loss_function = nn.L1Loss(reduction='mean')
             elif name in ['L2', 'self_L2', 'nlf_L2']:
                 loss_function = nn.MSELoss(reduction='mean')
-            elif name in ['self_Gau_likelihood', 'self_Lap_likelihood', 'WGAN_D', 'WGAN_G']:
+            elif name in ['self_Gau_likelihood', 'self_Lap_likelihood', 'WGAN_D', 'WGAN_G', 'DCGAN_D', 'DCGAN_G']:
                 loss_function = None
             elif name == 'GP':
                 loss_function = gradient_penalty
@@ -133,6 +133,15 @@ class Loss(nn.Module):
             elif name == 'WGAN_G':
                 D_fake_for_G = model_output
                 losses[name] = single_loss['weight'] * -torch.mean(D_fake_for_G)
+
+            elif name == 'DCGAN_D':
+                D_fake, D_real = model_output
+                losses[name] = single_loss['weight'] * (F.binary_cross_entropy(torch.sigmoid(D_fake), torch.zeros_like(D_fake)) + \
+                                                        F.binary_cross_entropy(torch.sigmoid(D_real), torch.ones_like(D_real)))
+
+            elif name == 'DCGAN_G':
+                D_fake_for_G = model_output
+                losses[name] = single_loss['weight'] * F.binary_cross_entropy(torch.sigmoid(D_fake_for_G), torch.ones_like(D_fake_for_G))
             
             elif name == 'batch_zero_mean':
                 generated_noise_maps = model_output

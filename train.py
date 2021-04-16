@@ -11,10 +11,11 @@ def main():
     # parsing configuration
     args = argparse.ArgumentParser()
     args.add_argument('--session_name', default=None,  type=str)
-    args.add_argument('--config',  default=None,  type=str)
-    args.add_argument('--resume',  default=False, type=lambda x:x.lower()!='false')
-    args.add_argument('--gpu',     default=None,  type=str)
-    args.add_argument('--thread',  default=4,     type=int)
+    args.add_argument('--config',       default=None,  type=str)
+    args.add_argument('--resume',       default=False, type=lambda x:x.lower()!='false')
+    args.add_argument('--gpu',          default=None,  type=str)
+    args.add_argument('--thread',       default=4,     type=int)
+    args.add_argument('--other',        default=None,  type=str)
 
     args = args.parse_args()
 

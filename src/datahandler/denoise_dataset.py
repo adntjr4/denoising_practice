@@ -20,10 +20,13 @@ dataset_module = {
 
                     # DND
                     'DND'       : 'DND',
+                    'prep_DND'  : 'DND',
 
                     # SIDD
                     'SIDD'      : 'SIDD',
                     'SIDD_val'  : 'SIDD',
+                    'prep_SIDD' : 'SIDD',
+                    'part_SIDD' : 'SIDD',
 
                     # RNI15
                     'RNI15'     : 'RNI15',

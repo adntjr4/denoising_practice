@@ -24,4 +24,24 @@ class DND(DenoiseDataSet):
         raise NotImplementedError
         parsed = {}
         return parsed
+
+class prep_DND(DenoiseDataSet):
+    '''
+    dataset class for prepared DND dataset which is cropped with overlap.
+    '''
+    def __init__(self, add_noise=None, mask=None, crop_size=None, aug=None, n_repeat=1, **kwargs):
+        super().__init__(add_noise=add_noise, mask=mask, crop_size=crop_size, aug=aug, n_repeat=n_repeat, **kwargs)
+
+    def _scan(self):
+        self.dataset_path = os.path.join(self.dataset_dir, 'prep/prep-DND-cut512-ov128')
+
+        for root, _, files in os.walk(os.path.join(self.dataset_path, 'N')):
+            self.img_paths = files
+
+    def _load_data(self, data_idx):
+        file_name = self.img_paths[data_idx]
+
+        noisy_img = self._load_img(os.path.join(self.dataset_path, 'N' , file_name))
+
+        return {'real_noisy': noisy_img} #'instances': instance }
         

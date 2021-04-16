@@ -23,6 +23,19 @@ model_module_dict = {
                 # CLtoN
                 'CLtoN_G': 'CLtoN',
                 'CLtoN_D': 'CLtoN',
+                'LtoN_G': 'CLtoN',
+                'LtoN_D': 'CLtoN',
+                'CLtoN_G_indep_1': 'CLtoN',
+                'CLtoN_G_indep_3': 'CLtoN',
+                'CLtoN_G_indep_13': 'CLtoN',
+                'CLtoN_G_dep_1': 'CLtoN',
+                'CLtoN_G_dep_3': 'CLtoN',
+                'CLtoN_G_dep_13': 'CLtoN',
+                'CLtoN_G_indep_dep_1': 'CLtoN',
+                'CLtoN_G_indep_dep_3': 'CLtoN',
+
+                'CLtoN_D_one_out': 'CLtoN',
+                'LtoN_D_one_out': 'CLtoN',
 
                 # Custom
                 'RBSN_sep': 'RBSN',

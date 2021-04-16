@@ -42,7 +42,7 @@ validation:
   add_noise: gau-25. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: bypass # e.g.) None bypass stf_64-rnd
   normalization: False
-  power_cliping: 2
+  multiple_cliping: 2
 
   val: True
   save_image: True
@@ -66,6 +66,6 @@ test:
   add_noise: gau-25. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: bypass # e.g.) None bypass stf_64-rnd
   normalization: False
-  power_cliping: 2
+  multiple_cliping: 2
 
   save_image: True

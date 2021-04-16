@@ -37,6 +37,17 @@ My custom repository for multiple Denoising task.
 
 - training을 시킬 때, model code도 같이 저장. (+ 나중에 test할 때 이걸로도 하는 방법.)
 
+### RTCV final project tasks
+
+- verifying real-world noise is real laplace distribution.
+- DBSN reproduction.
+- applying diverse noise level in single image.
+- applying laplace distribution.
+- applying fusion technique.
+- new blind-spot network architecture.
+
+<!--
+
 ### Notepad
 
 - sRGB 이미지가 학습이 안 되는 이유는 주변 픽셀(inner 2 pixel range)들로부터 demosaic function을 학습하여 원본 pixel을 유추할 수 있기 때문일 것이다.
@@ -56,4 +67,6 @@ My custom repository for multiple Denoising task.
 - receptive field가 좁아져도 성능이 늘어나는가?
     - 1x1 conv만 있어도 괜찮은 가를 실험 or paper survey
 - near pixel attention을 적용할 방법을 생각.
-- training scheme을 Laine or DBSN처럼 하는 방법을 생각.
+- training scheme을 Laine or DBSN처럼 하는 방법을 생각. 
+
+-->

@@ -11,8 +11,8 @@ done
 
 ##### Setting #####
 
-session="gen-C2V_test"
-config="gen-C2V"
+session="gen-C2N_test"
+config="gen-C2N_GAN"
 
 ###################
 

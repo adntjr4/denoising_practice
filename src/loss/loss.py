@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.autograd as autograd
 
+eps = 1e-6
 
 class Loss(nn.Module):
     def __init__(self, loss_string):
@@ -57,7 +58,7 @@ class Loss(nn.Module):
                 model output should be as following shape.
                     x_mean (Tensor[b,c,w,h])  : mean of prediction.
                     x_var (Tensor[b,c,c,w,h]) : covariance matrix of prediction.
-                    n_sigma (Tensor[b,w,h])   : estimation of noise level. (in Laine19's paper, noise level is scalar)
+                    n_sigma (Tensor[b,1,1,w,h])   : estimation of noise level. (in Laine19's paper, noise level is scalar)
                 '''
                 target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
                 x_mean, x_var, n_sigma = model_output
@@ -65,8 +66,8 @@ class Loss(nn.Module):
                 # transform the shape of tensors
                 b, c, w, h = x_mean.shape
                 n_var = torch.eye(c).view(-1)
-                if x_mean.is_cuda(): n_var = n_var.cuda() 
-                n_var = torch.pow(n_sigma, 2) * n_var.repeat(b,w,h,1) #b,w,h,c**2
+                if x_mean.is_cuda: n_var = n_var.cuda()
+                n_var = torch.pow(n_sigma, 2).permute(0,3,4,1,2).squeeze(-1) * n_var.repeat(b,w,h,1) #b,w,h,c**2
                 n_var = n_var.view(b,w,h,c,c)
                 x_var = x_var.permute(0,3,4,1,2) # b,w,h,c,c
 
@@ -80,7 +81,7 @@ class Loss(nn.Module):
                 loss = loss.squeeze(-1).squeeze(-1) # b,w,h
 
                 # second term in paper
-                loss += torch.log(torch.det(y_var)) # b,w,h
+                loss += torch.log(torch.clamp(torch.det(y_var), eps)) # b,w,h
                 
                 # divide with 2
                 loss /= 2
@@ -112,7 +113,7 @@ class Loss(nn.Module):
                 loss = loss.squeeze(-1).squeeze(-1) # b,w,h
 
                 # second term in paper (log)
-                loss += torch.log(torch.det(n_var)) # b,w,h
+                loss += torch.log(torch.clamp(torch.det(n_var), eps)) # b,w,h
 
                 # third term in paper (trace)
                 n_var_inv = torch.inverse(n_var) # b,w,h,c,c

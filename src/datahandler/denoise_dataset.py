@@ -82,8 +82,9 @@ class DenoiseDataSet(Dataset):
             norm(bool)              : flag of data normalization. (see datails in function)
             n_repeat(int)           : data repeating count
             kwargs:
-                power_cliping(int)  : clipping by 2**power_cliping for UNet input.
+                multiple_cliping(int)  : clipping by 2**multiple_cliping for UNet input.
                 keep_on_mem(bool)   : flag of keeping all image data in memory (before croping image)
+                pixel_unshuffle(int): factor of pixel unshuffle for images (1,2,3,4 are available)
         '''
 
         self.dataset_dir = './dataset'
@@ -91,11 +92,13 @@ class DenoiseDataSet(Dataset):
         self.add_noise_type, self.add_noise_opt, self.add_noise_clamp = self._parse_add_noise(add_noise)
         self.sampler, self.replacer = self._parse_mask(mask)
 
+        # set parameters for dataset.
         self.crop_size = crop_size
         self.aug = aug
         self.norm = norm
         self.n_repeat = n_repeat
         self.kwargs = kwargs
+        self.unshuffle = kwargs['pixel_unshuffle'] if 'pixel_unshuffle' in kwargs else None
 
         # scan all data and fill in self.img_paths
         self.img_paths = []
@@ -127,7 +130,7 @@ class DenoiseDataSet(Dataset):
         else:
             data = self.pre_loaded[data_idx]
 
-        # preprocessing include extract patch
+        # pre-processing include extract patch
         data = self._pre_processing(data)
 
         # synthesize noise
@@ -143,6 +146,9 @@ class DenoiseDataSet(Dataset):
                     data['nlf'] = nlf
                 else:
                     raise RuntimeError('there is no clean or real image to synthesize. (synthetic noise type: %s)'%self.add_noise_type)
+
+        # post-processing (like pixelunshuffle)
+        data = self._post_processing(data)
 
         # mask on noisy image
         if self.sampler is not None or self.replacer is not None:
@@ -215,9 +221,9 @@ class DenoiseDataSet(Dataset):
         if self.crop_size != None:
             data = self._get_patch(self.crop_size, data)
 
-        # clipping edges for Unet input (make image size as multiple of 2**power)
-        if 'power_cliping' in self.kwargs:
-            multiple = self.kwargs['power_cliping']
+        # clipping edges for Unet input (make image size as multiple of parameter)
+        if 'multiple_cliping' in self.kwargs:
+            multiple = self.kwargs['multiple_cliping']
             if self.crop_size != None:
                 assert self.crop_size[0]%multiple == 0 and self.crop_size[1]%multiple == 0
             else:
@@ -228,6 +234,10 @@ class DenoiseDataSet(Dataset):
         # any other pre-processing??
 
         return data
+
+    def _post_processing(self, data):
+        # pixel unshuffling
+
 
     def _get_patch(self, crop_size, data):
         # check all image size is same

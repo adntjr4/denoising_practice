@@ -41,7 +41,7 @@ class SIDD(DenoiseDataSet):
         clean_img = self._load_img(info['clean_img_path'])
         noisy_img = self._load_img(info['noisy_img_path'])
 
-        return {'clean': clean_img, 'real_noisy': noisy_img,} #'instances': info['instances'] }
+        return {'clean': clean_img, 'real_noisy': noisy_img, 'instances': info['instances'] }
 
     def _parse_folder_name(self, name):
         parsed = {}

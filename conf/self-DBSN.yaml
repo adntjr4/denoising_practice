@@ -12,7 +12,7 @@ training:
   crop_size: [128, 128]
   aug: ['hflip', 'rot']
   normalization: False
-  n_repeat: 12
+  n_repeat: 120
   
   batch_size: 16
 
@@ -23,8 +23,8 @@ training:
     type: step
     step:
       step_size: 50
-      gamma: 0.3
-  loss: 1.*self_L2
+      gamma: 0.1
+  loss: 1.*self_Gau_likelihood
   optimizer:
     type: Adam
     SGD:
@@ -47,8 +47,8 @@ validation:
   val: True
   save_image: True
   
-  start_epoch: 10
-  interval_epoch: 10
+  start_epoch: 1
+  interval_epoch: 1
   
 checkpoint:
   save: True
@@ -56,7 +56,7 @@ checkpoint:
   interval_epoch: 10
 
 log:
-  interval_iter: 10
+  interval_iter: 100
 
 test:
   dataset: CBSD68

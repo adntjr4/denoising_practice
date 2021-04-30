@@ -7,12 +7,12 @@ trainer: Trainer
 
 training:
   dataset: CBSD432
-  add_noise: gau-15. # e.g.) None uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
+  add_noise: gau-25. # e.g.) None uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
   mask: None # e.g.) None bypass stf_64-rnd
-  crop_size: [96, 96]
+  crop_size: [128, 128]
   aug: ['hflip', 'rot']
-  normalization: True
-  n_repeat: 10
+  normalization: False
+  n_repeat: 120
   
   batch_size: 16
 
@@ -39,9 +39,9 @@ training:
 validation:
   dataset: CBSD68
   crop_size: None # [64, 64]
-  add_noise: gau-15. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
+  add_noise: gau-25. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: None # e.g.) None bypass stf_64-rnd
-  normalization: True
+  normalization: False
 
   val: True
   save_image: True
@@ -60,7 +60,7 @@ log:
 test:
   dataset: CBSD68
   crop_size: None # [64, 64]
-  add_noise: gau-15. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
+  add_noise: gau-25. # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: None # e.g.) None bypass stf_64-rnd
   normalization: True
 

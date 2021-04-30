@@ -1,16 +1,20 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class DBSN_Likelihood(nn.Module):
-    def __init__(self, in_ch=1):
+    def __init__(self, in_ch=1, nlf_scalar=True):
         super().__init__()
 
         self.in_ch = in_ch
+        self.nlf_scalar = True
 
         self.bsn = DBSN(in_ch=in_ch, out_ch=(in_ch+1)*in_ch)
-        self.estn = CNNest(in_ch=in_ch, out_ch=in_ch*in_ch)
+        num_ch_nlf = 1 if self.nlf_scalar else in_ch*in_ch
+        self.estn = CNNest(in_ch=in_ch, out_ch=num_ch_nlf)
 
     def forward(self, x):
         # forward BSN
@@ -20,13 +24,15 @@ class DBSN_Likelihood(nn.Module):
         # forward noise level estimation network.
         n_var = self.estn(x)
         n_var = self.make_matrix_form(n_var)
+        n_var = torch.full_like(n_var, 25.)
 
-        return x_mean, mu_var, n_var
+        return x_mean, self.make_covar_form(mu_var), self.make_covar_form(n_var)
 
     def make_matrix_form(self, sigma):
         b,c,w,h = sigma.shape
-        assert c == self.in_ch**2, 'number of channel should be square of number of input channel'
-        return sigma.view(b,self.in_ch,self.in_ch,w,h)
+        assert c in [1,9], 'number of channel should be square of number of input channel'
+        cc = int(math.sqrt(c))
+        return sigma.view(b,cc,cc,w,h)
 
     def denoise(self, x):
         '''
@@ -39,7 +45,14 @@ class DBSN_Likelihood(nn.Module):
         x_reshape = x.permute(0,2,3,1).unsqueeze(-1) # b,w,h,c,1
         x_mean = x_mean.permute(0,2,3,1).unsqueeze(-1) # b,w,h,c,1
         mu_var = mu_var.permute(0,3,4,1,2) # b,w,h,c,c
-        n_var = n_var.permute(0,3,4,1,2) # b,w,h,c,c
+        n_var = n_var.permute(0,3,4,1,2) # b,w,h,c,c or b,w,h,1,1
+
+        if self.nlf_scalar:
+            b, w, h, c, _ = x_mean.shape
+            eye = torch.eye(c).view(-1)
+            if x_mean.is_cuda: eye = eye.cuda()
+            n_var = torch.pow(n_var, 2).squeeze(-1) * eye.repeat(b,w,h,1) #b,w,h,c**2
+            n_var = n_var.view(b,w,h,c,c)
 
         y_var_inv = torch.inverse(mu_var + n_var) # b,w,h,c,c
         cross_sum = torch.matmul(mu_var, x_reshape) + torch.matmul(n_var, x_mean)
@@ -47,6 +60,14 @@ class DBSN_Likelihood(nn.Module):
         results = torch.matmul(y_var_inv, cross_sum).squeeze(-1) # b,w,h,c
 
         return results.permute(0,3,1,2) # b,c,w,h
+
+    def make_covar_form(self, m):
+        '''
+        m : b,c,c,w,h
+        '''
+        tri_m = torch.triu(m.permute(0,3,4,1,2))
+        co_mat = torch.matmul(torch.transpose(tri_m,3,4), tri_m)
+        return co_mat.permute(0,3,4,1,2)
 
 
 class DBSN(nn.Module):

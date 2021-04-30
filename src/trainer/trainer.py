@@ -109,8 +109,8 @@ class Trainer(BasicTrainer):
 
             # forward
             input_data = [data[arg] for arg in self.cfg['model_input']]
-            if hasattr(self.model['denoiser'], 'denoise'):
-                denoised_image = self.model['denoiser'].denoise(*input_data)
+            if hasattr(self.model['denoiser'].module, 'denoise'):
+                denoised_image = self.model['denoiser'].module.denoise(*input_data)
             else:
                 denoised_image = self.model['denoiser'](*input_data)
 

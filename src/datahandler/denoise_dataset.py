@@ -7,7 +7,7 @@ from scipy.ndimage import gaussian_filter
 import torch
 from torch.utils.data import Dataset
 
-from ..util.util import rot_hflip_img, tensor2np
+from ..util.util import rot_hflip_img, tensor2np, pixel_shuffle_down_sampling
 from .dataset_util.mask import RandomSampler, StratifiedSampler, VoidReplacer, RandomReplacer
 
 
@@ -75,16 +75,16 @@ class DenoiseDataSet(Dataset):
             - self._load_data(self, data_idx) : load all data you want as dictionary form with defined keys (see function for detail.)
 
         Args:
-            add_noise(str or None)  : configuration of addictive noise to synthesize noisy image. (see details in yaml file)
-            mask(str or None)       : configuration of mask method for self-supervised training.
-            crop_size(list or None) : crop size [W, H]
-            aug(list or None)       : data augmentation (see details in yaml file)
-            norm(bool)              : flag of data normalization. (see datails in function)
-            n_repeat(int)           : data repeating count
+            add_noise (str or None)  : configuration of addictive noise to synthesize noisy image. (see details in yaml file)
+            mask (str or None)       : configuration of mask method for self-supervised training.
+            crop_size (list or None) : crop size [W, H]
+            aug (list or None)       : data augmentation (see details in yaml file)
+            norm (bool)              : flag of data normalization. (see datails in function)
+            n_repeat (int)           : data repeating count
             kwargs:
-                multiple_cliping(int)  : clipping by 2**multiple_cliping for UNet input.
-                keep_on_mem(bool)   : flag of keeping all image data in memory (before croping image)
-                pixel_unshuffle(int): factor of pixel unshuffle for images (1,2,3,4 are available)
+                multiple_cliping(int)  : clipping height and width of image to be multiple of multiple_cliping (for UNet or PD).
+                keep_on_mem (bool)   : flag of keeping all image data in memory (before croping image)
+                pd (int)             : factor of pixel-shuffle down-sampling for images (1,2,3,4 are available. for more details see util.py)
         '''
 
         self.dataset_dir = './dataset'
@@ -237,7 +237,11 @@ class DenoiseDataSet(Dataset):
 
     def _post_processing(self, data):
         # pixel unshuffling
-
+        if 'pd' in self.kwargs:
+            for key in data:
+                if self._is_image_tensor(data[key]):
+                    data[key] = pixel_shuffle_down_sampling(data[key], self.kwargs['pd'])
+        return data
 
     def _get_patch(self, crop_size, data):
         # check all image size is same
@@ -266,7 +270,6 @@ class DenoiseDataSet(Dataset):
     def normalize_data(self, data, cuda=False):
         # for all image
         for key in data:
-            # is image
             if self._is_image_tensor(data[key]):
                 data[key] = self.normalize(data[key], cuda)
         return data
@@ -472,6 +475,9 @@ class DenoiseDataSet(Dataset):
     ##### etc #####
 
     def _is_image_tensor(self, x):
+        '''
+        return input tensor has image shape. (include batched image)
+        '''
         if isinstance(x, torch.Tensor):
             if len(x.shape) == 3 or len(x.shape) == 4:
                 if x.dtype != torch.bool:

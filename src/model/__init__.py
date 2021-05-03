@@ -14,7 +14,9 @@ model_module_dict = {
                 'DBSN': 'DBSN',
                 'C_DBSN': 'DBSN',
                 'DBSN_Likelihood': 'DBSN',
+                'DBSN_Likelihood3': 'DBSN',
                 'C_DBSN_Likelihood': 'DBSN',
+                'C_DBSN_Likelihood3': 'DBSN',
 
                 # Effective Blind-Spot Network
                 'EBSN' : 'EBSN',

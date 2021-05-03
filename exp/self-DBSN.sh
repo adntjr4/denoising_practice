@@ -11,7 +11,7 @@ done
 
 ##### Setting #####
 
-session="self-DBSN-BSD"
+session="self-DBSN-BSD3"
 config="self-DBSN"
 
 ###################

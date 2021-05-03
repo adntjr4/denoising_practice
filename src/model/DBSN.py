@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 
 class DBSN_Likelihood(nn.Module):
-    def __init__(self, in_ch=1, nlf_scalar=True):
+    def __init__(self, in_ch=1, nlf_scalar=True, est_net=None):
         super().__init__()
 
         self.in_ch = in_ch
@@ -14,17 +14,20 @@ class DBSN_Likelihood(nn.Module):
 
         self.bsn = DBSN(in_ch=in_ch, out_ch=(in_ch+1)*in_ch)
         num_ch_nlf = 1 if self.nlf_scalar else in_ch*in_ch
-        self.estn = CNNest(in_ch=in_ch, out_ch=num_ch_nlf)
+        if est_net is None:
+            self.estn = CNNest(in_ch=in_ch, out_ch=num_ch_nlf)
+        else:
+            self.estn = est_net(in_ch=in_ch, out_ch=num_ch_nlf)
 
     def forward(self, x):
         # forward BSN
         bsn_out = self.bsn(x)
-        x_mean, mu_var = bsn_out[:,:3,:,:], self.make_matrix_form(bsn_out[:,3:,:,:])
+        x_mean, mu_var = bsn_out[:,:self.in_ch,:,:], self.make_matrix_form(bsn_out[:,self.in_ch:,:,:])
 
         # forward noise level estimation network.
         n_var = self.estn(x)
         n_var = self.make_matrix_form(n_var)
-        n_var = torch.full_like(n_var, 25.)
+        #n_var = torch.full_like(n_var, 5.)
 
         return x_mean, self.make_covar_form(mu_var), self.make_covar_form(n_var)
 
@@ -68,7 +71,6 @@ class DBSN_Likelihood(nn.Module):
         tri_m = torch.triu(m.permute(0,3,4,1,2))
         co_mat = torch.matmul(torch.transpose(tri_m,3,4), tri_m)
         return co_mat.permute(0,3,4,1,2)
-
 
 class DBSN(nn.Module):
     def __init__(self, num_module=5, in_ch=1, out_ch=1, base_ch=64):
@@ -152,6 +154,21 @@ class CNNest(nn.Module):
     def forward(self, x):
         return self.body(x)
 
+class CNNest3(nn.Module):
+    def __init__(self, in_ch=3, out_ch=9, num_layer=5, base_ch=16):
+        super().__init__()
+
+        layer = [nn.Conv2d(in_channels=in_ch, out_channels=base_ch, kernel_size=3, padding=1)]
+        for i in range(num_layer-2):
+            layer.append(nn.ReLU(inplace=True))
+            layer.append(nn.Conv2d(in_channels=base_ch, out_channels=base_ch, kernel_size=3, padding=1))
+        layer.append(nn.ReLU(inplace=True))
+        layer.append(nn.Conv2d(in_channels=base_ch, out_channels=out_ch, kernel_size=3, padding=1))
+        self.body = nn.Sequential(*layer)
+    
+    def forward(self, x):
+        return self.body(x)
+
 class CentralMaskedConv2d(nn.Conv2d):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -172,6 +189,14 @@ class C_DBSN(DBSN):
 class C_DBSN_Likelihood(DBSN_Likelihood):
     def __init__(self):
         super().__init__(in_ch=3)
+
+class DBSN_Likelihood3(DBSN_Likelihood):
+    def __init__(self):
+        super().__init__(in_ch=1, est_net=DBSN)
+
+class C_DBSN_Likelihood3(DBSN_Likelihood):
+    def __init__(self):
+        super().__init__(in_ch=3, est_net=DBSN)
 
 if __name__ == "__main__":
     t = torch.randn(16,3,64,64)

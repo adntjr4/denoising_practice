@@ -43,11 +43,15 @@ class Loss(nn.Module):
                     continue
 
             if name in ['L1', 'L2']:
-                losses[name] = single_loss['weight'] * single_loss['func'](model_output, data['clean'])
+                if type(model_output) is tuple: output = model_output[0]
+                else: output = model_output
+                losses[name] = single_loss['weight'] * single_loss['func'](output, data['clean'])
 
             elif name in ['self_L1', 'self_L2']:
+                if type(model_output) is tuple: output = model_output[0]
+                else: output = model_output
                 target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
-                losses[name] = single_loss['weight'] * single_loss['func'](model_output * data['mask'], target_noisy * data['mask'])
+                losses[name] = single_loss['weight'] * single_loss['func'](output * data['mask'], target_noisy * data['mask'])
 
             elif name in ['nlf_L1', 'nlf_L2']:
                 raise NotImplementedError

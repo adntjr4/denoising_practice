@@ -55,3 +55,21 @@ def rot_hflip_img(img:torch.Tensor, rot_times:int, hflip:int):
         # 270 degrees
         else:               
             return img.transpose(1,2)
+
+def pixel_shuffle_down_sampling(x, f):
+    '''
+    pixel-shuffle down-sampling (PD) from "When AWGN-denoiser meets real-world noise." (AAAI 2019)
+    Args:
+        x (Tensor) : input tensor
+        f (int) : factor of PD
+    '''
+    # single image tensor
+    if len(x.shape) == 3:
+        c,h,w = x.shape
+        unshuffled = F.pixel_unshuffle(x, f)
+        return unshuffled.view(c,f,f,h//f,w//h).permute(0,1,3,2,4).reshape(c,h,w)
+    # batched image tensor
+    else:
+        b,c,h,w = x.shape
+        unshuffled = F.pixel_unshuffle(x, f)
+        return unshuffled.view(b,c,f,f,h//f,w//h).permute(0,1,2,4,3,5).reshape(b,c,h,w)

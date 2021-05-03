@@ -27,6 +27,10 @@ class DBSN_Likelihood(nn.Module):
         # forward noise level estimation network.
         n_var = self.estn(x)
         n_var = self.make_matrix_form(n_var)
+        # averaging
+        b,c,c,w,h = n_var.shape
+        n_var = n_var.view(b,-1).mean(dim=1, keepdim=True).expand(b, c*c*w*h).view(b,c,c,w,h)
+        
         #n_var = torch.full_like(n_var, 5.)
 
         return x_mean, self.make_covar_form(mu_var), self.make_covar_form(n_var)

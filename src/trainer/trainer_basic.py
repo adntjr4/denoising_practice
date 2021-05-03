@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from .output import Output
 from ..loss.loss import Loss
-from ..datahandler.denoise_dataset import get_dataset_object
+from ..datahandler import get_dataset_object
 from ..util.logger import Logger
 
 status_len = 13

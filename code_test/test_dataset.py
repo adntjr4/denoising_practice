@@ -3,10 +3,10 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 import numpy as np
 
-from src.datahandler.denoise_dataset import get_dataset_object
+from src.datahandler import get_dataset_object
 
-
-train_dataset = get_dataset_object('SIDD_val')()
+train_dataset = get_dataset_object('PD4_CBSD68_50')()
+#train_dataset = get_dataset_object('SIDD_val')(pd=1)
 #train_dataset = get_dataset_object('CBSD68')(add_noise='gau-50.')
 data = train_dataset.__getitem__(3)
 # if data['masked'].shape[0] == 3:

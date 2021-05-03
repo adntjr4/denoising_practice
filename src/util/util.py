@@ -1,5 +1,6 @@
 import matplotlib as plt
 import torch
+import torch.nn.functional as F
 import cv2
 import numpy as np
 
@@ -67,9 +68,9 @@ def pixel_shuffle_down_sampling(x, f):
     if len(x.shape) == 3:
         c,h,w = x.shape
         unshuffled = F.pixel_unshuffle(x, f)
-        return unshuffled.view(c,f,f,h//f,w//h).permute(0,1,3,2,4).reshape(c,h,w)
+        return unshuffled.view(c,f,f,h//f,w//f).permute(0,1,3,2,4).reshape(c,h,w)
     # batched image tensor
     else:
         b,c,h,w = x.shape
         unshuffled = F.pixel_unshuffle(x, f)
-        return unshuffled.view(b,c,f,f,h//f,w//h).permute(0,1,2,4,3,5).reshape(b,c,h,w)
+        return unshuffled.view(b,c,f,f,h//f,w//f).permute(0,1,2,4,3,5).reshape(b,c,h,w)

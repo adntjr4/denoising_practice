@@ -25,15 +25,15 @@ class DBSN_Likelihood(nn.Module):
         x_mean, mu_var = bsn_out[:,:self.in_ch,:,:], self.make_matrix_form(bsn_out[:,self.in_ch:,:,:])
 
         # forward noise level estimation network.
-        n_var = self.estn(x)
-        n_var = self.make_matrix_form(n_var)
+        n_sigma = self.estn(x)
+        n_sigma = self.make_matrix_form(n_sigma)
         # averaging
-        b,c,c,w,h = n_var.shape
-        n_var = n_var.view(b,-1).mean(dim=1, keepdim=True).expand(b, c*c*w*h).view(b,c,c,w,h)
+        b,c,c,w,h = n_sigma.shape
+        n_sigma = n_sigma.view(b,-1).mean(dim=1, keepdim=True).expand(b, c*c*w*h).view(b,c,c,w,h)
         
-        #n_var = torch.full_like(n_var, 5.)
+        # n_sigma = torch.full_like(n_sigma, 25.)
 
-        return x_mean, self.make_covar_form(mu_var), self.make_covar_form(n_var)
+        return x_mean, self.make_covar_form(mu_var), n_sigma
 
     def make_matrix_form(self, sigma):
         b,c,w,h = sigma.shape
@@ -47,22 +47,22 @@ class DBSN_Likelihood(nn.Module):
         because forward operation isn't for denoising.
         (see more details at section 3.3 in D-BSN paper)
         '''
-        x_mean, mu_var, n_var = self.forward(x)
+        x_mean, mu_var, n_sigma = self.forward(x)
 
         x_reshape = x.permute(0,2,3,1).unsqueeze(-1) # b,w,h,c,1
         x_mean = x_mean.permute(0,2,3,1).unsqueeze(-1) # b,w,h,c,1
         mu_var = mu_var.permute(0,3,4,1,2) # b,w,h,c,c
-        n_var = n_var.permute(0,3,4,1,2) # b,w,h,c,c or b,w,h,1,1
+        n_sigma = n_sigma.permute(0,3,4,1,2) # b,w,h,c,c or b,w,h,1,1
 
         if self.nlf_scalar:
             b, w, h, c, _ = x_mean.shape
             eye = torch.eye(c).view(-1)
             if x_mean.is_cuda: eye = eye.cuda()
-            n_var = torch.pow(n_var, 2).squeeze(-1) * eye.repeat(b,w,h,1) #b,w,h,c**2
-            n_var = n_var.view(b,w,h,c,c)
+            n_sigma = torch.pow(n_sigma, 2).squeeze(-1) * eye.repeat(b,w,h,1) #b,w,h,c**2
+            n_sigma = n_sigma.view(b,w,h,c,c)
 
-        y_var_inv = torch.inverse(mu_var + n_var) # b,w,h,c,c
-        cross_sum = torch.matmul(mu_var, x_reshape) + torch.matmul(n_var, x_mean)
+        y_var_inv = torch.inverse(mu_var + n_sigma) # b,w,h,c,c
+        cross_sum = torch.matmul(mu_var, x_reshape) + torch.matmul(n_sigma, x_mean)
 
         results = torch.matmul(y_var_inv, cross_sum).squeeze(-1) # b,w,h,c
 

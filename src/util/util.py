@@ -74,3 +74,23 @@ def pixel_shuffle_down_sampling(x, f):
         b,c,h,w = x.shape
         unshuffled = F.pixel_unshuffle(x, f)
         return unshuffled.view(b,c,f,f,h//f,w//f).permute(0,1,2,4,3,5).reshape(b,c,h,w)
+
+def pixel_shuffle_up_sampling(x, f):
+    '''
+    reverse of pixel-shuffle down-sampling (PD)
+    see more details about PD in pixel_shuffle_down_sampling()
+    Args:
+        x (Tensor) : input tensor
+        f (int) : factor of PD
+    '''
+    # single image tensor
+    if len(x.shape) == 3:
+        c,h,w = x.shape
+        before_shuffle = x.view(c,f,h//f,f,w//f).permute(0,1,3,2,4).reshape(c*f*f,h//f,w//f)
+        return F.pixel_shuffle(before_shuffle, f)   
+    # batched image tensor
+    else:
+        b,c,h,w = x.shape
+        before_shuffle = x.view(b,c,f,h//f,f,w//f).permute(0,1,2,4,3,5).reshape(b,c*f*f,h//f,w//f)
+        return F.pixel_shuffle(before_shuffle, f)
+

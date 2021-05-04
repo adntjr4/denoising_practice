@@ -22,7 +22,7 @@ class Loss(nn.Module):
                 loss_function = None
             elif name == 'GP':
                 loss_function = gradient_penalty
-            elif name in ['self_Gau_likelihood', 'self_Gau_likelihood_DBSN', 'self_Lap_likelihood', 
+            elif name in ['self_Gau_likelihood', 'self_Gau_likelihood_DBSN', 'self_Lap_likelihood', 'neg_nlf_mean',
                             'WGAN_D', 'WGAN_G']:
                 loss_function = None
             else:
@@ -85,7 +85,8 @@ class Loss(nn.Module):
                 loss = loss.squeeze(-1).squeeze(-1) # b,w,h
 
                 # second term in paper
-                loss += torch.log(torch.clamp(torch.det(y_var), eps)) # b,w,h
+                #loss += torch.log(torch.clamp(torch.det(y_var), eps)) # b,w,h
+                loss += torch.log(torch.det(y_var)) # b,w,h
                 
                 # divide with 2
                 loss /= 2
@@ -152,6 +153,9 @@ class Loss(nn.Module):
                 generated_noise_maps = model_output
                 batch_mean = torch.mean(generated_noise_maps, dim=(0,2,3), keepdim=False)
                 losses[name] = single_loss['weight'] * single_loss['func'](batch_mean, torch.zeros_like(batch_mean))
+
+            elif name == 'neg_nlf_mean':
+                losses[name] = single_loss['weight'] * -model_output[2].mean()
 
             elif name == 'GP':
                 D_inter, img_inter = model_output

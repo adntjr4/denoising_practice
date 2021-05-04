@@ -175,21 +175,24 @@ class DenoiseDataSet(Dataset):
             else:
                 cliped_H = H - (H % multiple)
                 cliped_W = W - (W % multiple)
-                data = self._get_patch([cliped_W, cliped_H], data)
+                data = self._get_patch([cliped_W, cliped_H], data, rnd=False)
             
         # any other pre-processing??
 
         return data
 
     def _post_processing(self, data):
-        # pixel unshuffling
+        # pixel-shuffle down-sampling
         if 'pd' in self.kwargs:
             for key in data:
                 if self._is_image_tensor(data[key]):
                     data[key] = pixel_shuffle_down_sampling(data[key], self.kwargs['pd'])
+
+        # others?
+
         return data
 
-    def _get_patch(self, crop_size, data):
+    def _get_patch(self, crop_size, data, rnd=True):
         # check all image size is same
         if 'clean' in data and 'real_noisy' in data:
             assert data['clean'].shape[1] == data['clean'].shape[1] and data['real_noisy'].shape[2] == data['real_noisy'].shape[2], \
@@ -202,8 +205,12 @@ class DenoiseDataSet(Dataset):
         else:
             max_x = data['real_noisy'].shape[2] - crop_size[0]
             max_y = data['real_noisy'].shape[1] - crop_size[1]
-        x = np.random.randint(0, max_x)
-        y = np.random.randint(0, max_y)
+
+        if rnd:
+            x = np.random.randint(0, max_x)
+            y = np.random.randint(0, max_y)
+        else:
+            x, y = 0, 0
 
         # crop
         if 'clean' in data:

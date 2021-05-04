@@ -6,7 +6,7 @@ model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 trainer: Trainer
 
 training:
-  dataset: PD2_CBSD432_25
+  dataset: PD2_CBSD68_25
   add_noise: None # e.g.) None bypass uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
   mask: bypass # e.g.) None bypass stf_0.7-rnd
   crop_size: [128, 128]
@@ -38,7 +38,7 @@ training:
   warmup_iter: 100
 
 validation:
-  dataset: PD2_CBSD432_25
+  dataset: PD2_CBSD68_25
   crop_size: None # [64, 64]
   add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: bypass # e.g.) None bypass stf_64-rnd
@@ -60,7 +60,7 @@ log:
   interval_iter: 50
 
 test:
-  dataset: PD2_CBSD432_25
+  dataset: PD2_CBSD68_25
   crop_size: None # [64, 64]
   add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: bypass # e.g.) None bypass stf_64-rnd

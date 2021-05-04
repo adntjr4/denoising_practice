@@ -156,7 +156,7 @@ class Trainer(BasicTrainer):
 
     def _set_module(self):
         module = {}
-        module['denoiser'] = get_model_object(self.cfg['model'])()
+        module['denoiser'] = get_model_object(self.cfg['model']['type'])(**self.cfg['model']['kwargs'])
         return module
         
     def _set_optimizer(self):
@@ -281,8 +281,8 @@ class Trainer_GAN(BasicTrainer):
 
     def _set_module(self):
         module = {}
-        module['model_G'] = get_model_object(self.cfg['model_G'])()
-        module['model_D'] = get_model_object(self.cfg['model_D'])()
+        module['model_G'] = get_model_object(self.cfg['model_G']['type'])(self.cfg['model_G']['kwargs'])
+        module['model_D'] = get_model_object(self.cfg['model_D']['type'])(self.cfg['model_D']['kwargs'])
         return module
 
     def _set_optimizer(self):

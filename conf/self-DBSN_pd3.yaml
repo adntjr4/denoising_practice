@@ -1,5 +1,8 @@
 
-model: C_DBSN_Likelihood
+model: 
+  type: DBSN_Likelihood
+  kwargs:
+    in_ch: 3
 
 model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 

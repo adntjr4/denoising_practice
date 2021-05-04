@@ -1,5 +1,8 @@
 
-model: N2V_UNet
+model: 
+  type: N2V_UNet
+  kwargs:
+    in_ch: 1
 
 model_input: [syn_noisy] # e.g.) real_noisy, syn_noisy, masked, clean
 

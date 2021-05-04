@@ -10,12 +10,12 @@ base block structures are coded by refering "CSBDeep"
 
 
 class Conv_Block(nn.Module):
-    def __init__(self, n_in_ch:int, n_out_ch:int, bn=True, act='ReLU', bias=True):
+    def __init__(self, in_ch:int, out_ch:int, bn=True, act='ReLU', bias=True):
         super().__init__()
 
         layers = []
-        layers.append(nn.Conv2d(n_in_ch, n_out_ch, kernel_size=3, padding=1, bias=bias))
-        if bn: layers.append(nn.BatchNorm2d(n_out_ch, eps=1e-04, momentum=0.9, affine=True))
+        layers.append(nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1, bias=bias))
+        if bn: layers.append(nn.BatchNorm2d(out_ch, eps=1e-04, momentum=0.9, affine=True))
         if act == 'ReLU':
             layers.append(nn.ReLU(inplace=True))
         elif act is not None:
@@ -27,10 +27,10 @@ class Conv_Block(nn.Module):
         return self.model(x)
 
 class Conv_Block_Serial(nn.Module):
-    def __init__(self, n_blocks:int, n_in_ch:int, n_out_ch:int, bn=True, act='ReLU', bias=True):
+    def __init__(self, n_blocks:int, in_ch:int, out_ch:int, bn=True, act='ReLU', bias=True):
         super().__init__()
-        blocks = [Conv_Block(n_in_ch, n_out_ch, bn, act, bias)]
-        blocks = blocks + [Conv_Block(n_out_ch, n_out_ch, bn, act, bias) for i in range(n_blocks-1)]
+        blocks = [Conv_Block(in_ch, out_ch, bn, act, bias)]
+        blocks = blocks + [Conv_Block(out_ch, out_ch, bn, act, bias) for i in range(n_blocks-1)]
         self.model = nn.Sequential(*blocks)
 
     def forward(self, x):
@@ -38,7 +38,7 @@ class Conv_Block_Serial(nn.Module):
 
 
 class UNet_Block(nn.Module):
-    def __init__(self, n_depth=2, n_in_ch=3, n_base_ch=16, n_conv_per_depth=16, n_pooling=2, bn=True, act='ReLU', bias=True):
+    def __init__(self, n_depth=2, in_ch=3, base_ch=16, n_conv_per_depth=16, n_pooling=2, bn=True, act='ReLU', bias=True):
         super().__init__()
         self.bias = True
         self.n_depth = n_depth
@@ -46,20 +46,20 @@ class UNet_Block(nn.Module):
 
         # down
         down_list = []
-        down_list.append(Conv_Block_Serial(n_conv_per_depth, n_in_ch=n_in_ch, n_out_ch=n_base_ch, bn=bn, act=act, bias=bias))
+        down_list.append(Conv_Block_Serial(n_conv_per_depth, in_ch=in_ch, out_ch=base_ch, bn=bn, act=act, bias=bias))
         for n in range(1,n_depth):
-            down_list.append(Conv_Block_Serial(n_conv_per_depth, n_in_ch=n_base_ch * n_pooling**(n-1), n_out_ch=n_base_ch * n_pooling**n, bn=bn, act=act, bias=bias))
+            down_list.append(Conv_Block_Serial(n_conv_per_depth, in_ch=base_ch * n_pooling**(n-1), out_ch=base_ch * n_pooling**n, bn=bn, act=act, bias=bias))
         self.down_modules = nn.ModuleList(down_list)
 
         # middle
-        self.middle = Conv_Block_Serial(n_conv_per_depth, n_in_ch=n_base_ch * n_pooling**(n_depth-1), n_out_ch=n_base_ch * n_pooling**n_depth, bn=bn, act=act, bias=bias)
+        self.middle = Conv_Block_Serial(n_conv_per_depth, in_ch=base_ch * n_pooling**(n_depth-1), out_ch=base_ch * n_pooling**n_depth, bn=bn, act=act, bias=bias)
 
         # up
         upconv_list = []
         up_list = []
         for n in reversed(range(n_depth)):
-            upconv_list.append(nn.ConvTranspose2d(n_base_ch * n_pooling**(n+1), n_base_ch * n_pooling**n, kernel_size=n_pooling, stride=n_pooling))
-            up_list.append(Conv_Block_Serial(n_conv_per_depth, n_in_ch=n_base_ch * n_pooling**(n+1), n_out_ch=n_base_ch * n_pooling**n, bn=bn, act=act, bias=bias))
+            upconv_list.append(nn.ConvTranspose2d(base_ch * n_pooling**(n+1), base_ch * n_pooling**n, kernel_size=n_pooling, stride=n_pooling))
+            up_list.append(Conv_Block_Serial(n_conv_per_depth, in_ch=base_ch * n_pooling**(n+1), out_ch=base_ch * n_pooling**n, bn=bn, act=act, bias=bias))
         self.upconv_modules = nn.ModuleList(upconv_list)
         self.up_modules = nn.ModuleList(up_list)
 
@@ -82,18 +82,9 @@ class UNet_Block(nn.Module):
         return x
 
 class N2V_UNet(nn.Module):
-    def __init__(self, n_depth=2, n_ch_in=1, n_base_ch=16, n_conv_per_depth=16, n_pooling=2, bn=True):
+    def __init__(self, n_depth=2, in_ch=1, base_ch=16, n_conv_per_depth=16, n_pooling=2, bn=True):
         super().__init__()
-        modules = [UNet_Block(n_depth, n_ch_in, n_base_ch, n_conv_per_depth, n_pooling, bn), nn.Conv2d(n_base_ch, n_ch_in, kernel_size=3, padding=1)]
-        self.model = nn.Sequential(*modules)
-
-    def forward(self, x):
-        return x + self.model(x)
-
-class C_N2V_UNet(nn.Module):
-    def __init__(self, n_depth=2, n_ch_in=3, n_base_ch=16, n_conv_per_depth=16, n_pooling=2, bn=True):
-        super().__init__()
-        modules = [UNet_Block(n_depth, n_ch_in, n_base_ch, n_conv_per_depth, n_pooling, bn), nn.Conv2d(n_base_ch, n_ch_in, kernel_size=3, padding=1)]
+        modules = [UNet_Block(n_depth, in_ch, base_ch, n_conv_per_depth, n_pooling, bn), nn.Conv2d(base_ch, in_ch, kernel_size=3, padding=1)]
         self.model = nn.Sequential(*modules)
 
     def forward(self, x):

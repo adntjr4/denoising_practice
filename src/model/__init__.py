@@ -4,23 +4,17 @@ from importlib import import_module
 model_module_dict = {
                 # DnCNN
                 'DnCNN_B':  'DnCNN',
-                'CDnCNN_B': 'DnCNN',
 
                 # N2V
                 'N2V_UNet': 'UNet',
-                'C_N2V_UNet': 'UNet',
 
                 # D-BSN
                 'DBSN': 'DBSN',
-                'C_DBSN': 'DBSN',
                 'DBSN_Likelihood': 'DBSN',
                 'DBSN_Likelihood3': 'DBSN',
-                'C_DBSN_Likelihood': 'DBSN',
-                'C_DBSN_Likelihood3': 'DBSN',
 
                 # Effective Blind-Spot Network
                 'EBSN' : 'EBSN',
-                'C_EBSN' : 'EBSN',
 
                 # CLtoN
                 'CLtoN_G': 'CLtoN',
@@ -38,22 +32,6 @@ model_module_dict = {
 
                 'CLtoN_D_one_out': 'CLtoN',
                 'LtoN_D_one_out': 'CLtoN',
-
-                # Custom
-                'RBSN_sep': 'RBSN',
-                'C_RBSN_sep': 'RBSN',
-                'RBSN_cond': 'RBSN',
-                'RBSN_FS': 'RBSN',
-                'NarrowDnCNN': 'DnCNN',
-                'FBSNet': 'FBSNet',
-                'DBSN_Likelihood': 'DBSN',
-                'DBSN_Cond': 'DBSN',
-
-                # temporal networks
-                'EBSN_Edge': 'RBSN',
-                'DBSN_Alt': 'DBSN',
-                'EBSN_Wide': 'EBSN',
-                'C_EBSN_Wide': 'EBSN',
                 }
 
 def get_model_object(model_name):

@@ -1,6 +1,10 @@
 
-model_G: CLtoN_G
-model_D: CLtoN_D
+model_G: 
+  type: CLtoN_G
+  kwargs:
+model_D:
+  type: CLtoN_D
+  kwargs:
 
 # model_input: syn_noisy # e.g.) real_noisy, syn_noisy, masked, clean
 

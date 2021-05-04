@@ -186,21 +186,9 @@ class CentralMaskedConv2d(nn.Conv2d):
         self.weight.data *= self.mask
         return super().forward(x)
 
-class C_DBSN(DBSN):
-    def __init__(self):
-        super().__init__(in_ch=3, out_ch=3)
-
-class C_DBSN_Likelihood(DBSN_Likelihood):
-    def __init__(self):
-        super().__init__(in_ch=3)
-
 class DBSN_Likelihood3(DBSN_Likelihood):
-    def __init__(self):
-        super().__init__(in_ch=1, est_net=DBSN)
-
-class C_DBSN_Likelihood3(DBSN_Likelihood):
-    def __init__(self):
-        super().__init__(in_ch=3, est_net=DBSN)
+    def __init__(self, in_ch=3):
+        super().__init__(in_ch=in_ch, est_net=DBSN)
 
 if __name__ == "__main__":
     t = torch.randn(16,3,64,64)

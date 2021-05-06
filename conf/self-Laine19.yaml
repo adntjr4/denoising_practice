@@ -1,9 +1,8 @@
 
 model: 
-  type: Laine19
+  type: Laine19_Likelihood
   kwargs:
     in_ch: 3
-    out_ch: 3
 
 model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 
@@ -27,9 +26,9 @@ training:
   scheduler:
     type: step
     step:
-      step_size: 60
+      step_size: 40
       gamma: 0.1
-  loss: 1.*self_L2
+  loss: 1.*self_Gau_likelihood + 0.001*neg_nlf_mean
   optimizer:
     type: Adam
     SGD:

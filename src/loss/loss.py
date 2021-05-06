@@ -58,11 +58,11 @@ class Loss(nn.Module):
 
             elif name == 'self_Gau_likelihood':
                 '''
-                MAP loss for gaussian likelihood.
+                MAP loss for gaussian likelihood from Laine et al.
                 model output should be as following shape.
                     x_mean (Tensor[b,c,w,h])  : mean of prediction.
                     x_var (Tensor[b,c,c,w,h]) : covariance matrix of prediction.
-                    n_sigma (Tensor[b,1,1,w,h])   : estimation of noise level. (in Laine19's paper, noise level is scalar)
+                    n_sigma (Tensor[b])   : estimation of noise level.
                 '''
                 target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
                 x_mean, x_var, n_sigma = model_output
@@ -71,7 +71,8 @@ class Loss(nn.Module):
                 b, c, w, h = x_mean.shape
                 n_var = torch.eye(c).view(-1)
                 if x_mean.is_cuda: n_var = n_var.cuda()
-                n_var = torch.pow(n_sigma, 2).permute(0,3,4,1,2).squeeze(-1) * n_var.repeat(b,w,h,1) #b,w,h,c**2
+                n_var = torch.pow(n_sigma, 2) * n_var.repeat(b,w,h,1).permute(1,2,3,0) # w,h,c**2,b
+                n_var = n_var.permute(3,0,1,2) # b,w,h,c**2
                 n_var = n_var.view(b,w,h,c,c)
                 x_var = x_var.permute(0,3,4,1,2) # b,w,h,c,c
 
@@ -155,7 +156,7 @@ class Loss(nn.Module):
                 losses[name] = single_loss['weight'] * single_loss['func'](batch_mean, torch.zeros_like(batch_mean))
 
             elif name == 'neg_nlf_mean':
-                losses[name] = single_loss['weight'] * -model_output[2].mean()
+                losses[name] = single_loss['weight'] * -torch.abs(model_output[2].mean())
 
             elif name == 'GP':
                 D_inter, img_inter = model_output

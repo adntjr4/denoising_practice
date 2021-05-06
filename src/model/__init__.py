@@ -10,6 +10,7 @@ model_module_dict = {
 
                 # Laine19
                 'Laine19': 'Laine19',
+                'Laine19_Likelihood': 'Laine19',
 
                 # D-BSN
                 'DBSN': 'DBSN',

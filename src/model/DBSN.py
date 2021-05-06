@@ -33,13 +33,7 @@ class DBSN_Likelihood(nn.Module):
         
         # n_sigma = torch.full_like(n_sigma, 25.)
 
-        return x_mean, self.make_covar_form(mu_var), n_sigma
-
-    def make_matrix_form(self, sigma):
-        b,c,w,h = sigma.shape
-        assert c in [1,9], 'number of channel should be square of number of input channel'
-        cc = int(math.sqrt(c))
-        return sigma.view(b,cc,cc,w,h)
+        return x_mean, self.make_covar_form(mu_var), n_sigma   
 
     def denoise(self, x):
         '''
@@ -68,9 +62,21 @@ class DBSN_Likelihood(nn.Module):
 
         return results.permute(0,3,1,2) # b,c,w,h
 
+    def make_matrix_form(self, m):
+        '''
+        m      : b,c**2,w,h
+        return : b,c,c,w,h
+        '''
+        b,cc,w,h = m.shape
+        assert cc in [1,9], 'number of channel should be square of number of input channel'
+        c = int(math.sqrt(cc))
+        return m.view(b,c,c,w,h)
+
     def make_covar_form(self, m):
         '''
-        m : b,c,c,w,h
+        multiply upper triangular part of matrix to make validate covariance matrix.
+        m      : b,c,c,w,h
+        return : b,c,c,w,h
         '''
         tri_m = torch.triu(m.permute(0,3,4,1,2))
         co_mat = torch.matmul(torch.transpose(tri_m,3,4), tri_m)

@@ -23,11 +23,12 @@ def tensor2np(t):
     else:
         raise RuntimeError('wrong tensor dimensions : %s'%(t.shape,))
 
-def rot_hflip_img(img:torch.Tensor, rot_times:int, hflip:int):
+def rot_hflip_img(img:torch.Tensor, rot_times:int=0, hflip:int=0):
     '''
     rotate '90 x times degree' & horizontal flip image 
-    (shape of img: C, H, W)
+    (shape of img: b,c,h,w or c,h,w)
     '''
+    b=0 if len(img.shape)==3 else 1
     # no flip
     if hflip % 2 == 0:
         # 0 degrees
@@ -35,27 +36,27 @@ def rot_hflip_img(img:torch.Tensor, rot_times:int, hflip:int):
             return img
         # 90 degrees
         elif rot_times % 4 == 1:  
-            return img.flip(1).transpose(1,2)
+            return img.flip(b+1).transpose(b+1,b+2)
         # 180 degrees
         elif rot_times % 4 == 2:  
-            return img.flip(2).flip(1)
+            return img.flip(b+2).flip(b+1)
         # 270 degrees
         else:               
-            return img.flip(2).transpose(1,2)
+            return img.flip(b+2).transpose(b+1,b+2)
     # horizontal flip
     else:
         # 0 degrees
         if rot_times % 4 == 0:    
-            return img.flip(2)
+            return img.flip(b+2)
         # 90 degrees
         elif rot_times % 4 == 1:  
-            return img.flip(1).flip(2).transpose(1,2)
+            return img.flip(b+1).flip(b+2).transpose(b+1,b+2)
         # 180 degrees
         elif rot_times % 4 == 2:  
-            return img.flip(1)
+            return img.flip(b+1)
         # 270 degrees
         else:               
-            return img.transpose(1,2)
+            return img.transpose(b+1,b+2)
 
 def pixel_shuffle_down_sampling(x, f):
     '''
@@ -94,3 +95,9 @@ def pixel_shuffle_up_sampling(x, f):
         before_shuffle = x.view(b,c,f,h//f,f,w//f).permute(0,1,2,4,3,5).reshape(b,c*f*f,h//f,w//f)
         return F.pixel_shuffle(before_shuffle, f)
 
+def human_format(num):
+    magnitude=0
+    while abs(num)>=1000:
+        magnitude+=1
+        num/=1000.0
+    return '%.1f%s'%(num,['','K','M','G','T','P'][magnitude])

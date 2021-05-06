@@ -3,11 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-t = torch.randn(2,5)
-
+t = torch.randn(1,1,4,4)
+t = F.pad(t, (0,0,2,0))
 print(t)
-print(t.mean(dim=1))
-
-t[:] = t.mean(dim=1)
-
-print(t)
+print(t[:,:,:-2,:])

@@ -8,6 +8,9 @@ model_module_dict = {
                 # N2V
                 'N2V_UNet': 'UNet',
 
+                # Laine19
+                'Laine19': 'Laine19',
+
                 # D-BSN
                 'DBSN': 'DBSN',
                 'DBSN_Likelihood': 'DBSN',

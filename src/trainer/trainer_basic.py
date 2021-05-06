@@ -12,6 +12,7 @@ from .output import Output
 from ..loss.loss import Loss
 from ..datahandler import get_dataset_object
 from ..util.logger import Logger
+from ..util.util import human_format
 
 status_len = 13
 
@@ -162,6 +163,7 @@ class BasicTrainer(Output):
             self.model = {key: nn.DataParallel(self.module[key]) for key in self.module}
 
         # start message
+        self.logger.info(self.summary())
         self.logger.start((self.epoch-1, 0))
         self.logger.highlight(self.logger.get_start_msg())
 
@@ -345,3 +347,24 @@ class BasicTrainer(Output):
         if 'keep_on_mem' in cfg:
             other_args['keep_on_mem'] = cfg['keep_on_mem']
         return other_args
+
+    def summary(self):
+        summary = ''
+
+        summary += '-'*100 + '\n'
+        # model
+        for k, v in self.module.items():
+            # get parameter number
+            param_num = sum(p.numel() for p in v.parameters())
+
+            # get information about architecture and parameter number
+            summary += '[%s] paramters: %s -->'%(k, human_format(param_num)) + '\n'
+            summary += str(v) + '\n\n'
+        
+        # optim
+
+        # Hardware
+
+        summary += '-'*100 + '\n'
+
+        return summary

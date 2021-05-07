@@ -6,11 +6,11 @@ import torch.nn.functional as F
 
 
 class DBSN_Likelihood(nn.Module):
-    def __init__(self, in_ch=1, nlf_scalar=True, est_net=None):
+    def __init__(self, in_ch=1, nlf_scalar=False, est_net=None):
         super().__init__()
 
         self.in_ch = in_ch
-        self.nlf_scalar = True
+        self.nlf_scalar = nlf_scalar
 
         self.bsn = DBSN(in_ch=in_ch, out_ch=(in_ch+1)*in_ch)
         num_ch_nlf = 1 if self.nlf_scalar else in_ch*in_ch
@@ -25,15 +25,18 @@ class DBSN_Likelihood(nn.Module):
         x_mean, mu_var = bsn_out[:,:self.in_ch,:,:], self.make_matrix_form(bsn_out[:,self.in_ch:,:,:])
 
         # forward noise level estimation network.
-        n_sigma = self.estn(x)
-        n_sigma = self.make_matrix_form(n_sigma)
-        # averaging
-        b,c,c,w,h = n_sigma.shape
-        n_sigma = n_sigma.view(b,-1).mean(dim=1, keepdim=True).expand(b, c*c*w*h).view(b,c,c,w,h)
-        
-        # n_sigma = torch.full_like(n_sigma, 25.)
+        n_var = self.estn(x)
+        n_var = self.make_matrix_form(n_var)
 
-        return x_mean, self.make_covar_form(mu_var), n_sigma   
+        if self.nlf_scalar:
+            # averaging
+            b,c,c,w,h = n_var.shape
+            n_var = n_var.view(b,-1).mean(dim=1)
+            # n_var = torch.full_like(n_var, 25.)
+        else:
+            n_var = self.make_covar_form(n_var)
+
+        return x_mean, self.make_covar_form(mu_var), n_var   
 
     def denoise(self, x):
         '''
@@ -41,19 +44,21 @@ class DBSN_Likelihood(nn.Module):
         because forward operation isn't for denoising.
         (see more details at section 3.3 in D-BSN paper)
         '''
-        x_mean, mu_var, n_sigma = self.forward(x)
+        x_mean, mu_var, n_var = self.forward(x)
 
         x_reshape = x.permute(0,2,3,1).unsqueeze(-1) # b,w,h,c,1
         x_mean = x_mean.permute(0,2,3,1).unsqueeze(-1) # b,w,h,c,1
         mu_var = mu_var.permute(0,3,4,1,2) # b,w,h,c,c
-        n_sigma = n_sigma.permute(0,3,4,1,2) # b,w,h,c,c or b,w,h,1,1
-
+        
         if self.nlf_scalar:
-            b, w, h, c, _ = x_mean.shape
+            b,w,h,c,_ = x_mean.shape
             eye = torch.eye(c).view(-1)
             if x_mean.is_cuda: eye = eye.cuda()
-            n_sigma = torch.pow(n_sigma, 2).squeeze(-1) * eye.repeat(b,w,h,1) #b,w,h,c**2
-            n_sigma = n_sigma.view(b,w,h,c,c)
+            n_var = torch.pow(n_var, 2) * eye.repeat(b,w,h,1).permute(1,2,3,0) # w,h,c**2,b
+            n_var = n_var.permute(3,0,1,2) # b,w,h,c**2
+            n_var = n_var.view(b,w,h,c,c)  # b,w,h,c,c
+        else:
+            n_var = n_var.permute(0,3,4,1,2) # b,w,h,c,c
 
         y_var_inv = torch.inverse(mu_var + n_sigma) # b,w,h,c,c
         cross_sum = torch.matmul(mu_var, x_reshape) + torch.matmul(n_sigma, x_mean)
@@ -193,8 +198,8 @@ class CentralMaskedConv2d(nn.Conv2d):
         return super().forward(x)
 
 class DBSN_Likelihood3(DBSN_Likelihood):
-    def __init__(self, in_ch=3):
-        super().__init__(in_ch=in_ch, est_net=DBSN)
+    def __init__(self, in_ch=3, nlf_scalar=False):
+        super().__init__(in_ch=in_ch, nlf_scalar=nlf_scalar, est_net=DBSN)
 
 if __name__ == "__main__":
     t = torch.randn(16,3,64,64)

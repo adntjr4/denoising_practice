@@ -149,6 +149,8 @@ class Laine19_Likelihood(nn.Module):
         x_var = self.make_covar_form(self.make_matrix_form(bsn_out[:,self.in_ch:,:,:]))
         n_sigma = self.estn(x).view(b,-1).mean(dim=1)
 
+        # n_sigma = torch.full_like(n_sigma, 25.)
+
         return x_mean, x_var, n_sigma
 
     def denoise(self, x):
@@ -165,9 +167,9 @@ class Laine19_Likelihood(nn.Module):
 
         # reshape std of noise
         b,w,h,c,_ = x_mean.shape
-        n_var = torch.eye(c).view(-1)
-        if x_mean.is_cuda: n_var = n_var.cuda()
-        n_var = torch.pow(n_sigma, 2) * n_var.repeat(b,w,h,1).permute(1,2,3,0) # w,h,c**2,b
+        eye = torch.eye(c).view(-1)
+        if x_mean.is_cuda: eye = eye.cuda()
+        n_var = torch.pow(n_sigma, 2) * eye.repeat(b,w,h,1).permute(1,2,3,0) # w,h,c**2,b
         n_var = n_var.permute(3,0,1,2) # b,w,h,c**2
         n_var = n_var.view(b,w,h,c,c)  # b,w,h,c,c
 

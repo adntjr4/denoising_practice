@@ -14,9 +14,9 @@ class Loss(nn.Module):
         for single_loss in loss_string.split('+'):
             weight, name = single_loss.split('*')
 
-            if name in ['L1', 'self_L1', 'nlf_L1', 'batch_zero_mean']:
+            if name in ['L1', 'self_L1', 'nlf_L1', 'shuffle_L1', 'batch_zero_mean']:
                 loss_function = nn.L1Loss(reduction='mean')
-            elif name in ['L2', 'self_L2', 'nlf_L2']:
+            elif name in ['L2', 'self_L2', 'nlf_L2', 'shuffle_L2']:
                 loss_function = nn.MSELoss(reduction='mean')
             elif name in ['self_Gau_likelihood', 'self_Lap_likelihood', 'WGAN_D', 'WGAN_G', 'DCGAN_D', 'DCGAN_G']:
                 loss_function = None
@@ -32,7 +32,7 @@ class Loss(nn.Module):
                                    'weight': float(weight),
                                    'func': loss_function})
             
-    def forward(self, model_output, data, loss_name=None):
+    def forward(self, input_data, model_output, data, model, loss_name=None):
         losses = {}
         for single_loss in self.loss_list:
             name = single_loss['name']
@@ -52,6 +52,14 @@ class Loss(nn.Module):
                 else: output = model_output
                 target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
                 losses[name] = single_loss['weight'] * single_loss['func'](output * data['mask'], target_noisy * data['mask'])
+
+            elif name in ['shuffle_L1', 'shuffle_L2']:
+                raise NotImplementedError
+                # 생각이 더 필요
+                denoised = model.denoise(input_data).detach()
+                output2 = model(denoised)
+                target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
+                losses[name] = single_loss['weight'] * single_loss['func'](output2 * data['mask'], target_noisy * data['mask'])
 
             elif name in ['nlf_L1', 'nlf_L2']:
                 raise NotImplementedError

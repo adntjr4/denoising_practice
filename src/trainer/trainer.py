@@ -177,7 +177,7 @@ class Trainer(BasicTrainer):
             opt.zero_grad() 
 
         # get losses
-        losses = self.loss(model_output, data)
+        losses = self.loss(input_data, model_output, data, self.model)
 
         # backward
         total_loss = sum(v for v in losses.values())
@@ -186,6 +186,8 @@ class Trainer(BasicTrainer):
         # optimizer step
         for opt in self.optimizer.values():
             opt.step()
+
+        torch.cuda.empty_cache()
 
         return losses
 

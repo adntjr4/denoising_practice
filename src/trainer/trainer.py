@@ -187,8 +187,6 @@ class Trainer(BasicTrainer):
         for opt in self.optimizer.values():
             opt.step()
 
-        torch.cuda.empty_cache()
-
         return losses
 
 class Trainer_GAN(BasicTrainer):

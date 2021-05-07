@@ -199,7 +199,7 @@ class CentralMaskedConv2d(nn.Conv2d):
 
 class DBSN_Likelihood3(DBSN_Likelihood):
     def __init__(self, in_ch=3, nlf_scalar=False):
-        super().__init__(in_ch=in_ch, nlf_scalar=nlf_scalar, est_net=DBSN)
+        super().__init__(in_ch=in_ch, nlf_scalar=nlf_scalar, est_net=CNNest3)
 
 if __name__ == "__main__":
     t = torch.randn(16,3,64,64)

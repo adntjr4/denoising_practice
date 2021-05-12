@@ -6,8 +6,7 @@ import torch.autograd as autograd
 
 from .trainer_basic import BasicTrainer, status_len
 from ..model import get_model_object
-from ..loss.metrics import psnr, ssim
-from ..util.util import tensor2np
+from ..util.util import tensor2np, psnr, ssim
 
 
 class Trainer(BasicTrainer):

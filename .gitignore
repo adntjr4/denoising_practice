@@ -17,3 +17,6 @@ output/*
 
 # ignore tmp folder
 tmp/*
+
+# ignore test codes
+code_test/*

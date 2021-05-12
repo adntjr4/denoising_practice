@@ -60,8 +60,8 @@ class DBSN_Likelihood(nn.Module):
         else:
             n_var = n_var.permute(0,3,4,1,2) # b,w,h,c,c
 
-        y_var_inv = torch.inverse(mu_var + n_sigma) # b,w,h,c,c
-        cross_sum = torch.matmul(mu_var, x_reshape) + torch.matmul(n_sigma, x_mean)
+        y_var_inv = torch.inverse(mu_var + n_var) # b,w,h,c,c
+        cross_sum = torch.matmul(mu_var, x_reshape) + torch.matmul(n_var, x_mean)
 
         results = torch.matmul(y_var_inv, cross_sum).squeeze(-1) # b,w,h,c
 

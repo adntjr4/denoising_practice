@@ -306,6 +306,7 @@ class BasicTrainer(Output):
                                                             aug       = dataset_cfg['aug'] if 'aug' in dataset_cfg else None,
                                                             norm      = dataset_cfg['normalization'],
                                                             n_repeat  = dataset_cfg['n_repeat'] if 'n_repeat' in dataset_cfg else 1,
+                                                            n_data    = dataset_cfg['n_data'] if 'n_data' in dataset_cfg else None,
                                                             **other_args,)
             dataloader[key] = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
 

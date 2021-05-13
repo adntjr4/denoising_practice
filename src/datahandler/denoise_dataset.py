@@ -13,7 +13,7 @@ from .dataset_util.mask import RandomSampler, StratifiedSampler, VoidReplacer, R
 
     
 class DenoiseDataSet(Dataset):
-    def __init__(self, add_noise=None, mask=None, crop_size=None, aug=None, norm=None, n_repeat=1, **kwargs):
+    def __init__(self, add_noise=None, mask=None, crop_size=None, aug=None, norm:bool=None, n_repeat:int=1, n_data:int=None, **kwargs):
         '''
         basic denoising dataset class for various dataset.
         for build specific dataset class below instruction must be implemented. (or see other dataset class already implemented.)
@@ -27,6 +27,7 @@ class DenoiseDataSet(Dataset):
             aug (list or None)       : data augmentation (see details in yaml file)
             norm (bool)              : flag of data normalization. (see datails in function)
             n_repeat (int)           : data repeating count
+            n_data (int)             : set length of dataset to this number (using front data)
             kwargs:
                 multiple_cliping(int)  : clipping height and width of image to be multiple of multiple_cliping (for UNet or PD).
                 keep_on_mem (bool)   : flag of keeping all image data in memory (before croping image)
@@ -43,6 +44,7 @@ class DenoiseDataSet(Dataset):
         self.aug = aug
         self.norm = norm
         self.n_repeat = n_repeat
+        self.n_data = n_data
         self.kwargs = kwargs
         self.unshuffle = kwargs['pixel_unshuffle'] if 'pixel_unshuffle' in kwargs else None
 
@@ -62,6 +64,8 @@ class DenoiseDataSet(Dataset):
         self.color_stds  = None
 
     def __len__(self):
+        if self.n_data is not None:
+            return self.n_data * self.n_repeat
         return len(self.img_paths) * self.n_repeat
 
     def __getitem__(self, idx):

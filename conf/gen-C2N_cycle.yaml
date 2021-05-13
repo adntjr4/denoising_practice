@@ -33,11 +33,11 @@ training:
   normalization: False
   n_repeat: 1
   
-  batch_size: 48
+  batch_size: 32
 
   max_epoch: 24
   
-  init_lr: 3e-4
+  init_lr: 1e-4
   scheduler:
     type: step
     step:
@@ -61,6 +61,7 @@ validation:
   add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: None # e.g.) None bypass stf_64-rnd
   normalization: False
+  n_data: 64
 
   val: True
   save_image: True

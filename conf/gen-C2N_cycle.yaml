@@ -1,6 +1,6 @@
 
 model_G: 
-  type: CLtoN_G
+  type: CLtoN_G_modified
   kwargs:
     n_ch_in: 3
     n_ch_out: 3
@@ -33,7 +33,7 @@ training:
   normalization: False
   n_repeat: 1
   
-  batch_size: 32
+  batch_size: 16
 
   max_epoch: 24
   

@@ -22,6 +22,7 @@ model_module_dict = {
 
                 # CLtoN
                 'CLtoN_G': 'CLtoN',
+                'CLtoN_G_modified': 'CLtoN',
                 'CLtoN_D': 'CLtoN',
                 'LtoN_G': 'CLtoN',
                 'LtoN_D': 'CLtoN',

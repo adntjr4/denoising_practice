@@ -16,9 +16,9 @@ class CLtoN_D(nn.Module):
         self.n_block = n_block
 
         self.head = nn.Sequential(nn.Conv2d(self.n_ch_in, self.n_ch, kernel_size=3, padding=1, bias=True),
-                                  nn.PReLU())
+                                  nn.LeakyReLU(inplace=True))
 
-        layers = [ResBlock(n_ch=self.n_ch, kernel_size=3, act='PReLU', bias=True, bn=bn) for _ in range(self.n_block)]
+        layers = [ResBlock(n_ch=self.n_ch, kernel_size=3, act='LReLU', bias=True, bn=bn) for _ in range(self.n_block)]
         self.body = nn.Sequential(*layers)
 
         self.tail = nn.Conv2d(self.n_ch, 1, kernel_size=3, padding=1, bias=True)
@@ -164,6 +164,86 @@ class CLtoN_G(nn.Module):
 
         return noise
 
+class CLtoN_G_modified(nn.Module):
+    def __init__(self, n_ch_in=3, n_ch_out=3, n_ch=64, n_rand=32, n_ext_block=5, n_indep_block=3, n_dep_block=2,
+                    pipe_indep=False, pipe_dep=True):
+        super().__init__()
+
+        bn = False
+
+        self.n_ch_in = n_ch_in
+        self.n_ch_out = n_ch_out
+        self.n_ch = n_ch
+        self.n_rand = n_rand
+
+        self.n_ext_block = n_ext_block
+        self.n_indep_block = n_indep_block
+        self.n_dep_block = n_dep_block
+
+        self.pipe_indep = pipe_indep
+        self.pipe_dep   = pipe_dep
+
+        # feat extractor
+        if self.pipe_dep:
+            self.ext_merge = nn.Sequential(nn.Conv2d(n_ch_in+n_rand, 2*n_ch, 3, padding=1, bias=True),
+                                           nn.ReLU(inplace=True))
+            self.ext = nn.Sequential(*[ResBlock(n_ch=2*n_ch, kernel_size=3, act='ReLU', bias=True, bn=bn) for i in range(self.n_ext_block)])
+
+        # pipe-indep
+        if self.pipe_indep:
+            self.pipe_indep = nn.Sequential(*[ResBlock(n_ch, kernel_size=1, act='ReLU', bias=True, bn=bn) for _ in range(n_indep_block)])
+
+        # pipe-dep
+        if self.pipe_dep:
+            self.pipe_dep = nn.Sequential(*[ResBlock(n_ch, kernel_size=1, act='ReLU', bias=True, bn=bn) for i in range(n_dep_block)])
+
+        # T tail
+        self.tail_conv = nn.Sequential( nn.Conv2d(n_ch, n_ch, kernel_size=3, padding=1),
+                                        nn.ReLU(inplace=True),
+                                        nn.Conv2d(n_ch, n_ch_out, kernel_size=3, padding=1))
+
+    def forward(self, img_CL, rand_vec=None):
+        (N, C, H, W) = img_CL.size()
+
+        noise = []
+
+        if self.pipe_dep:
+            # random vector (is None sample it)
+            if rand_vec is None:
+                rand_vec = torch.randn((N, self.n_rand), device=img_CL.device)
+
+            # random vector repeat (to same device)
+            rand_vec_map = rand_vec.unsqueeze(-1).unsqueeze(-1).repeat(1,1,H,W)
+
+            # feat extractor
+            list_cat = [img_CL, rand_vec_map]
+            feat_CL = self.ext_merge(torch.cat(list_cat, 1))
+            feat_CL = self.ext(feat_CL)
+
+            # make initial dep noise feature
+            feat_noise_dep = torch_distb.Normal(loc=feat_CL[:,:self.n_ch,:,:], scale=torch.clip(feat_CL[:,self.n_ch:,:,:], eps)).rsample()
+            feat_noise_dep.to(img_CL.device)
+
+            # pipe-dep
+            noise_dep = self.pipe_dep(feat_noise_dep)
+
+            noise.append(noise_dep)
+
+        if self.pipe_indep:
+            # make initial indep noise feature
+            # feat_noise_indep = torch.rand_like(feat_noise_dep, requires_grad=True)
+            feat_noise_indep = torch.randn((N,self.n_ch,H,W), device=img_CL.device)
+
+            # pipe-indep
+            noise_indep = self.pipe_indep(feat_noise_indep)
+
+            noise.append(noise_indep)
+
+        # pipe-merge
+        noise = self.tail_conv(sum(noise))
+
+        return noise
+
 
 class LtoN_D(CLtoN_D):
     def __init__(self):
@@ -218,6 +298,8 @@ class ResBlock(nn.Module):
             layer.append(nn.ReLU(inplace=True))
         elif act == 'PReLU':
             layer.append(nn.PReLU())
+        elif act == 'LReLU':
+            layer.append(nn.LeakyReLU(inplace=True))
         elif act is not None:
             raise RuntimeError('undefined activation function %s'%act)
         layer.append(nn.Conv2d(n_ch, n_ch, kernel_size=kernel_size, padding=kernel_size//2, bias=bias))

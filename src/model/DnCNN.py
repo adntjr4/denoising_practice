@@ -56,8 +56,8 @@ class Block(nn.Module):
         return self.model(x)
 
 class DnCNN_B(DnCNN):
-    def __init__(self):
-        super().__init__(in_ch=1, out_ch=1, n_layer=20)
+    def __init__(self, in_ch=1, out_ch=1):
+        super().__init__(in_ch=in_ch, out_ch=out_ch, n_layer=20)
 
 # ========
 

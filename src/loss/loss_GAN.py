@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.autograd as autograd
 
 from .single_loss import regist_loss
 
@@ -45,3 +46,10 @@ class GP():
         grad_dists = ((gradients.norm(2, dim=1) - 1)**2)
 
         return grad_dists.mean()
+
+@regist_loss
+class batch_zero_mean():
+    def __call__(self, input_data, model_output, data, model):
+        generated_noise_maps = model_output
+        batch_mean = torch.mean(generated_noise_maps, dim=(0,2,3), keepdim=False)
+        return F.l1_loss(batch_mean, torch.zeros_like(batch_mean))

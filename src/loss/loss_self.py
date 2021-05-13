@@ -28,7 +28,7 @@ class self_L2():
 
         target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
 
-        return F.l2_loss(output * data['mask'], target_noisy * data['mask'])
+        return F.mse_loss(output * data['mask'], target_noisy * data['mask'])
         
 @regist_loss
 class self_Gau_likelihood():

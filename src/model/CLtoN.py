@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributions as torch_distb
 
-
+eps = 1e-6
 
 class CLtoN_D(nn.Module):
     def __init__(self, n_ch_in=3, n_ch=64, n_block=6):
@@ -131,7 +131,7 @@ class CLtoN_G(nn.Module):
             feat_CL = self.ext(feat_CL)
 
             # make initial dep noise feature
-            feat_noise_dep = torch_distb.Normal(loc=feat_CL[:,:self.n_ch,:,:], scale=feat_CL[:,self.n_ch:,:,:]).rsample()
+            feat_noise_dep = torch_distb.Normal(loc=feat_CL[:,:self.n_ch,:,:], scale=torch.clip(feat_CL[:,self.n_ch:,:,:], eps)).rsample()
             feat_noise_dep.to(img_CL.device)
 
             # pipe-dep

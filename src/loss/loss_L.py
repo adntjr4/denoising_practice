@@ -16,6 +16,5 @@ class L2():
     def __call__(self, input_data, model_output, data, model):
         if type(model_output) is tuple: output = model_output[0]
         else: output = model_output
-        return F.l2_loss(output, data['clean'])
+        return F.mse_loss(output, data['clean'])
         
-

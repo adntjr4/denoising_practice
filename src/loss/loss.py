@@ -29,7 +29,18 @@ class Loss(nn.Module):
             else:
                 raise RuntimeError('undefined loss term: {}'.format(name))
             
-    def forward(self, input_data, model_output, data, model, loss_name=None):
+    def forward(self, input_data, model_output, data, model, loss_name=None, change_name=None):
+        '''
+        forward all loss and return as dict format.
+        Args
+            input_data   : input of the network (also in the data)
+            model_output : output of the network
+            data         : entire batch of data
+            model        : model (for another network forward)
+            loss_name    : (optional) choose specific loss with name
+        Return
+            losses       : dictionary of loss
+        '''
         loss_arg = (input_data, model_output, data, model)
 
         losses = {}
@@ -40,28 +51,21 @@ class Loss(nn.Module):
             if loss_name is not None:
                 if loss_name.lower() != name:
                     continue
+                else:
+                    if change_name is not None:
+                        losses[change_name] = single_loss['weight'] * single_loss['func'](*loss_arg)
+                        return losses
 
-            if name in loss_types:
-                losses[name] = single_loss['weight'] * single_loss['func'](*loss_arg)
+            losses[name] = single_loss['weight'] * single_loss['func'](*loss_arg)
 
         return losses
 
-    def get_loss_dict_form(self):
-        loss_dict = {}
-        loss_dict['count'] = 0
-        for single_loss in self.loss_list:
-            loss_dict[single_loss['name']] = 0.
-        return loss_dict
-
-def gradient_penalty(D_inter, img_inter):
-    '''
-    return (||grad(D_inter)||_2 - 1)^2
-    Args
-        D_inter   : results which input is interpolated image.
-        img_inter : interpolation between fake image and real image.
-    '''
-    gradients = autograd.grad(outputs=D_inter, inputs=img_inter, grad_outputs=torch.ones_like(D_inter), create_graph=True, retain_graph=True, only_inputs=True)[0]
-    gradients = gradients.view(gradients.size(0), -1)
-    grad_dists = ((gradients.norm(2, dim=1) - 1)**2)
-    return grad_dists.mean()
-    
+    # def get_loss_dict_form(self):
+    #     '''
+    #     return dict{name: 0} for log or whatever
+    #     '''
+    #     loss_dict = {}
+    #     loss_dict['count'] = 0
+    #     for single_loss in self.loss_list:
+    #         loss_dict[single_loss['name']] = 0.
+    #     return loss_dict

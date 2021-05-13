@@ -126,7 +126,7 @@ class BasicTrainer(Output):
         self.max_iter = math.ceil(max_len / self.train_cfg['batch_size'])
 
         self.loss = Loss(self.train_cfg['loss'])
-        self.loss_dict = self.loss.get_loss_dict_form()
+        self.loss_dict = {'count':0}
         self.loss_log = []
 
         # set optimizer
@@ -225,7 +225,11 @@ class BasicTrainer(Output):
 
         # save losses
         for key in losses:
-            if key != 'count': self.loss_dict[key] += float(losses[key])
+            if key != 'count':
+                if key in self.loss_dict:
+                    self.loss_dict[key] += float(losses[key])
+                else:
+                    self.loss_dict[key] = float(losses[key])
         self.loss_dict['count'] += 1
 
     def _after_step(self):

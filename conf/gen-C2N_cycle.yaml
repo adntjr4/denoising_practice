@@ -1,0 +1,88 @@
+
+model_G: 
+  type: CLtoN_G
+  kwargs:
+    n_ch_in: 3
+    n_ch_out: 3
+model_DN:
+  type: CLtoN_D
+  kwargs:
+    n_ch_in: 3
+model_DC:
+  type: CLtoN_D
+  kwargs:
+    n_ch_in: 3
+denoiser:
+  type: DnCNN_B
+  kwargs:
+    in_ch: 3
+    out_ch: 3
+
+# model_input: syn_noisy # e.g.) real_noisy, syn_noisy, masked, clean
+
+trainer: Trainer_GAN_E2E
+
+training:
+  dataset:
+    dataset_CL: prep_SIDD
+    dataset_N : prep_SIDD
+  add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
+  mask: None # e.g.) None bypass stf_64-rnd
+  crop_size: [128, 128]
+  aug: ['hflip', 'rot']
+  normalization: False
+  n_repeat: 1
+  
+  batch_size: 16
+
+  max_epoch: 16
+  
+  init_lr: 1e-4
+  scheduler:
+    type: step
+    step:
+      step_size: 3
+      gamma: 0.8
+  loss: 1.*WGAN_D + 1.*WGAN_G + 10.*GP + 1.*L2 + 1e-2*batch_zero_mean
+  optimizer:
+    type: Adam
+    SGD:
+      momentum: 0.9
+      weight_decay: 1e-4
+    Adam:
+      betas: [0.9, 0.999]
+
+  warmup: False
+  warmup_iter: 100
+
+validation:
+  dataset: SIDD_val
+  crop_size: None # [64, 64]
+  add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
+  mask: None # e.g.) None bypass stf_64-rnd
+  normalization: False
+
+  val: True
+  save_image: True
+  
+  start_epoch: 1
+  interval_epoch: 1
+  
+checkpoint:
+  save: True
+  start_epoch: 1
+  interval_epoch: 1
+
+log:
+  interval_iter: 1
+  save_file: True
+
+test:
+  dataset: SIDD_val
+  crop_size: None # [64, 64]
+  add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
+  mask: bypass # e.g.) None bypass stf_64-rnd
+  normalization: False
+  # power_cliping: 2
+
+  save_image: True

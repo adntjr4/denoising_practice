@@ -35,14 +35,14 @@ training:
   
   batch_size: 16
 
-  max_epoch: 16
+  max_epoch: 24
   
   init_lr: 1e-4
   scheduler:
     type: step
     step:
-      step_size: 3
-      gamma: 0.8
+      step_size: 16
+      gamma: 0.1
   loss: 1.*WGAN_D + 1.*WGAN_G + 10.*GP + 1.*L2 + 1e-2*batch_zero_mean
   optimizer:
     type: Adam
@@ -74,7 +74,7 @@ checkpoint:
   interval_epoch: 1
 
 log:
-  interval_iter: 1
+  interval_iter: 10
   save_file: True
 
 test:

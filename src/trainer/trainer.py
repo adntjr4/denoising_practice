@@ -551,12 +551,14 @@ class Trainer_GAN_E2E(BasicTrainer):
             noisy_image_name = 'real_noisy' if 'real_noisy' in data else 'syn_noisy'
 
             # forward (noisy image generation from clean image)
+            gened_noisy_img = data['clean'] + self.model['model_G'](data['clean'])
             denoised_image = self.model['denoiser'](data[noisy_image_name])
 
             # inverse normalize dataset & result tensor
             if self.val_cfg['normalization']:
-                denoised_image = self.val_dataloader['dataset'].dataset.inverse_normalize(denoised_image, self.cfg['gpu'] != 'None')
-                data = self.val_dataloader['dataset'].dataset.inverse_normalize_data(data, self.cfg['gpu'] != 'None')
+                gened_noisy_img = self.val_dataloader['dataset'].dataset.inverse_normalize(gened_noisy_img, self.cfg['gpu'] != 'None')
+                denoised_image  = self.val_dataloader['dataset'].dataset.inverse_normalize(denoised_image, self.cfg['gpu'] != 'None')
+                data            = self.val_dataloader['dataset'].dataset.inverse_normalize_data(data, self.cfg['gpu'] != 'None')
 
             # evaluation
             if 'clean' in data:
@@ -572,6 +574,7 @@ class Trainer_GAN_E2E(BasicTrainer):
                 noisy_img = data['real_noisy'] if 'real_noisy' in data else data['syn_noisy']
                 noisy_img = noisy_img.squeeze().cpu()
                 denoi_img = denoised_image.squeeze().cpu()
+                gened_img = gened_noisy_img.squeeze().cpu()
 
                 # write psnr value on file name
                 denoi_name = '%04d_DN_%.2f.png'%(idx, psnr_value) if 'clean' in data else '%04d_DN.png'%idx
@@ -580,6 +583,7 @@ class Trainer_GAN_E2E(BasicTrainer):
                 if 'clean' in data:
                     cv2.imwrite(os.path.join(img_save_path, '%04d_CL.png'%idx), tensor2np(clean_img))
                 cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), tensor2np(noisy_img))
+                cv2.imwrite(os.path.join(img_save_path, '%04d_G.png'%idx), tensor2np(gened_img))
                 cv2.imwrite(os.path.join(img_save_path, denoi_name), tensor2np(denoi_img))
 
             # print temporal msg

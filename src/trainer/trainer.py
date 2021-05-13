@@ -518,7 +518,8 @@ class Trainer_GAN_E2E(BasicTrainer):
         super().__init__(cfg)
 
         # WGAN_GP hyper-parameter setting
-        self.n_critic = 5
+        self.mode = 'WGAN' if 'WGAN' in cfg['training']['loss'] else 1
+        self.n_critic = 5 if self.mode == 'WGAN' else 1
 
     @torch.no_grad()
     def test(self):
@@ -632,30 +633,32 @@ class Trainer_GAN_E2E(BasicTrainer):
             DC_fake = self.model['model_DC'](denoised_img)
             DC_real = self.model['model_DC'](clean_img)
 
-            # interpolation
-            (N, C, H, W) = real_noisy_img.size()
-            alpha = torch.rand(N, 1).cuda() if real_noisy_img.is_cuda else torch.rand(N, 1)
-            map_alpha = alpha.expand(N, int(real_noisy_img.nelement()/N)).contiguous().view(N, C, H, W)
-
-            N_img_inter = map_alpha*real_noisy_img + (1-map_alpha)*generated_noisy_img
-            N_img_inter = autograd.Variable(N_img_inter, requires_grad=True)
-
-            C_img_inter = map_alpha*clean_img + (1-map_alpha)*denoised_img
-            C_img_inter = autograd.Variable(C_img_inter, requires_grad=True)
-
-            DN_inter = self.model['model_DN'](N_img_inter)
-            DC_inter = self.model['model_DC'](C_img_inter)
-
             # get losses for D
-            # (if there is no loss name in configuration, loss returns empty dict.)
             losses = {}
-            losses.update(self.loss(None, (DN_fake, DN_real), None, None, loss_name='WGAN_D', change_name='WGAN_DN'))
-            losses.update(self.loss(None, (DN_fake, DN_real), None, None, loss_name='DCGAN_D', change_name='DCGAN_DN'))
-            losses.update(self.loss(None, (DN_inter, N_img_inter), None, None, loss_name='GP', change_name='GP_N'))
 
-            losses.update(self.loss(None, (DC_fake, DC_real), None, None, loss_name='WGAN_D', change_name='WGAN_DC'))
-            losses.update(self.loss(None, (DC_fake, DC_real), None, None, loss_name='DCGAN_D', change_name='DCGAN_DC'))
-            losses.update(self.loss(None, (DC_inter, C_img_inter), None, None, loss_name='GP', change_name='GP_C'))
+            # interpolation for gp
+            if self.mode == 'WGAN':
+                (N, C, H, W) = real_noisy_img.size()
+                alpha = torch.rand(N, 1).cuda() if real_noisy_img.is_cuda else torch.rand(N, 1)
+                map_alpha = alpha.expand(N, int(real_noisy_img.nelement()/N)).contiguous().view(N, C, H, W)
+
+                N_img_inter = map_alpha*real_noisy_img + (1-map_alpha)*generated_noisy_img
+                N_img_inter = autograd.Variable(N_img_inter, requires_grad=True)
+
+                C_img_inter = map_alpha*clean_img + (1-map_alpha)*denoised_img
+                C_img_inter = autograd.Variable(C_img_inter, requires_grad=True)
+
+                DN_inter = self.model['model_DN'](N_img_inter)
+                DC_inter = self.model['model_DC'](C_img_inter)
+
+            if self.mode == 'WGAN':
+                losses.update(self.loss(None, (DN_fake, DN_real), None, None, loss_name='WGAN_D', change_name='WGAN_DN'))
+                losses.update(self.loss(None, (DC_fake, DC_real), None, None, loss_name='WGAN_D', change_name='WGAN_DC'))
+                losses.update(self.loss(None, (DN_inter, N_img_inter), None, None, loss_name='GP', change_name='GP_N'))
+                losses.update(self.loss(None, (DC_inter, C_img_inter), None, None, loss_name='GP', change_name='GP_C'))
+            else:
+                losses.update(self.loss(None, (DN_fake, DN_real), None, None, loss_name='DCGAN_D', change_name='DCGAN_DN'))
+                losses.update(self.loss(None, (DC_fake, DC_real), None, None, loss_name='DCGAN_D', change_name='DCGAN_DC'))
 
             # zero grad for D optimizer
             self.optimizer['model_DN'].zero_grad()
@@ -692,9 +695,14 @@ class Trainer_GAN_E2E(BasicTrainer):
 
         # get losses for G
         losses = {}
-        losses.update(self.loss(None, DN_fake_for_G,        None, None, loss_name='WGAN_G',          change_name='WGAN_GN'))
-        losses.update(self.loss(None, DC_fake_for_denoiser, None, None, loss_name='WGAN_G',          change_name='WGAN_GC'))
-        losses.update(self.loss(None, denoised_generated_noisy_img, data_CL, None, loss_name='L2',      change_name='L2_cyclic'))
+        if self.mode == 'WGAN':
+            losses.update(self.loss(None, DN_fake_for_G,        None, None, loss_name='WGAN_G', change_name='WGAN_GN'))
+            losses.update(self.loss(None, DC_fake_for_denoiser, None, None, loss_name='WGAN_G', change_name='WGAN_GC'))
+        else:
+            losses.update(self.loss(None, DN_fake_for_G,        None, None, loss_name='DCGAN_G', change_name='DCGAN_GN'))
+            losses.update(self.loss(None, DC_fake_for_denoiser, None, None, loss_name='DCGAN_G', change_name='DCGAN_GC'))
+            
+        losses.update(self.loss(None, denoised_generated_noisy_img, data_CL, None, loss_name='L2',   change_name='L2_cyclic'))
         losses.update(self.loss(None, generated_noise_map,  None, None, loss_name='batch_zero_mean', change_name='BZM_N'))
         losses.update(self.loss(None, denoised_map,         None, None, loss_name='batch_zero_mean', change_name='BZM_C'))
 

@@ -1,6 +1,8 @@
 import os
+import random
 
 import cv2
+import numpy as np
 import torch
 import torch.autograd as autograd
 
@@ -197,7 +199,8 @@ class Trainer_GAN(BasicTrainer):
         torch.cuda.manual_seed(seed)
 
         # WGAN_GP hyper-parameter setting
-        self.n_critic = 5
+        self.mode = 'WGAN' if 'WGAN' in cfg['training']['loss'] else 1
+        self.n_critic = 5 if self.mode == 'WGAN' else 1
 
     @torch.no_grad()
     def test(self):
@@ -280,8 +283,8 @@ class Trainer_GAN(BasicTrainer):
 
     def _set_module(self):
         module = {}
-        module['model_G'] = get_model_object(self.cfg['model_G']['type'])(self.cfg['model_G']['kwargs'])
-        module['model_D'] = get_model_object(self.cfg['model_D']['type'])(self.cfg['model_D']['kwargs'])
+        module['model_G'] = get_model_object(self.cfg['model_G']['type'])(**self.cfg['model_G']['kwargs'])
+        module['model_D'] = get_model_object(self.cfg['model_D']['type'])(**self.cfg['model_D']['kwargs'])
         return module
 
     def _set_optimizer(self):
@@ -293,7 +296,6 @@ class Trainer_GAN(BasicTrainer):
     def _step(self, data):
         '''
         Currently here we implemented WGAN-GP only in original CLtoN code.
-        TODO : implemete simple DCGAN
         '''
         
         data_CL = data['dataset_CL']
@@ -312,22 +314,24 @@ class Trainer_GAN(BasicTrainer):
             D_fake = self.model['model_D'](generated_noisy_img)
             D_real = self.model['model_D'](real_noisy_img)
 
-            # interpolation
-            # TODO : implement alpha variable can operate in CPU.
-            (N, C, H, W) = real_noisy_img.size()
-            alpha = torch.rand(N, 1).cuda()
-            map_alpha = alpha.expand(N, int(real_noisy_img.nelement()/N)).contiguous().view(N, C, H, W)
-            img_inter = map_alpha*real_noisy_img + (1-map_alpha)*generated_noisy_img
-            img_inter = autograd.Variable(img_inter, requires_grad=True)
-
-            D_inter = self.model['model_D'](img_inter)
-
             # get losses for D
-            # (if there is no loss name in configuration, loss returns empty dict.)
             losses = {}
-            losses.update(self.loss((D_fake, D_real), None, 'WGAN_D'))
-            losses.update(self.loss((D_fake, D_real), None, 'DCGAN_D'))
-            losses.update(self.loss((D_inter, img_inter), None, 'GP'))
+
+            # interpolation
+            if self.mode == 'WGAN':
+                (N, C, H, W) = real_noisy_img.size()
+                alpha = torch.rand(N, 1).cuda() if real_noisy_img.is_cuda else torch.rand(N, 1)
+                map_alpha = alpha.expand(N, int(real_noisy_img.nelement()/N)).contiguous().view(N, C, H, W)
+                img_inter = map_alpha*real_noisy_img + (1-map_alpha)*generated_noisy_img
+                img_inter = autograd.Variable(img_inter, requires_grad=True)
+
+                D_inter = self.model['model_D'](img_inter)
+
+            if self.mode == 'WGAN':
+                losses.update(self.loss(None, (D_fake, D_real), None, None, 'WGAN_D'))
+                losses.update(self.loss(None, (D_inter, img_inter), None, None, 'GP'))
+            else:
+                losses.update(self.loss((D_fake, D_real), None, 'DCGAN_D'))
 
             # zero grad for D optimizer
             self.optimizer['model_D'].zero_grad()
@@ -357,9 +361,11 @@ class Trainer_GAN(BasicTrainer):
         
         # get losses for G
         losses = {}
-        losses.update(self.loss(D_fake_for_G, None, 'WGAN_G'))
-        losses.update(self.loss(D_fake_for_G, None, 'DCGAN_G'))
-        losses.update(self.loss(generated_noise_map, None, 'batch_zero_mean'))
+        if self.mode == 'WGAN':
+            losses.update(self.loss(None, D_fake_for_G, None, None, 'WGAN_G'))
+        else:
+            losses.update(self.loss(None, D_fake_for_G, None, None, 'DCGAN_G'))
+        losses.update(self.loss(None, generated_noise_map, None, None, 'batch_zero_mean'))
 
         # zero grad
         self.optimizer['model_G'].zero_grad()

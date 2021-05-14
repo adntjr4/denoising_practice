@@ -1,12 +1,13 @@
 
 model_G: 
-  type: CLtoN_G
+  type: CLtoN_G_modified
   kwargs:
+    n_ch_in: 3
+    n_ch_out: 3
 model_D:
   type: CLtoN_D
   kwargs:
-
-# model_input: syn_noisy # e.g.) real_noisy, syn_noisy, masked, clean
+    n_ch_in: 3
 
 trainer: Trainer_GAN
 
@@ -16,12 +17,12 @@ training:
     dataset_N : prep_SIDD
   add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
   mask: None # e.g.) None bypass stf_64-rnd
-  crop_size: [96, 96]
+  crop_size: [128, 128]
   aug: ['hflip', 'rot']
   normalization: False
   n_repeat: 1
   
-  batch_size: 36
+  batch_size: 32
 
   max_epoch: 36
   
@@ -49,6 +50,7 @@ validation:
   add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: None # e.g.) None bypass stf_64-rnd
   normalization: False
+  n_data: 64
 
   val: True
   save_image: True

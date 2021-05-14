@@ -198,8 +198,8 @@ class CLtoN_G_modified(nn.Module):
             self.pipe_dep = nn.Sequential(*[ResBlock(n_ch, kernel_size=1, act='ReLU', bias=True, bn=bn) for i in range(n_dep_block)])
 
         # T tail
-        self.tail_conv = nn.Sequential( nn.Conv2d(n_ch, n_ch, kernel_size=3, padding=1),
-                                        nn.ReLU(inplace=True),
+        self.tail_conv = nn.Sequential( ResBlock(n_ch, kernel_size=3, act='ReLU', bias=True, bn=bn),
+                                        ResBlock(n_ch, kernel_size=3, act='ReLU', bias=True, bn=bn),
                                         nn.Conv2d(n_ch, n_ch_out, kernel_size=3, padding=1))
 
     def forward(self, img_CL, rand_vec=None):

@@ -35,15 +35,15 @@ training:
   
   batch_size: 16
 
-  max_epoch: 24
+  max_epoch: 48
   
   init_lr: 1e-4
   scheduler:
     type: step
     step:
-      step_size: 8
+      step_size: 16
       gamma: 0.1
-  loss: 1.*DCGAN_D + 1.*DCGAN_G + 0.1*L2 + 1e-2*batch_zero_mean
+  loss: 1.*WGAN_D + 1.*WGAN_G + 10.*GP + 0.1*L2 + 1e-2*batch_zero_mean
   optimizer:
     type: Adam
     SGD:

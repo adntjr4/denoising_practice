@@ -11,7 +11,7 @@ done
 
 ##### Setting #####
 
-session="gen-C2N_widerRF"
+session="gen-C2Nm"
 config="gen-C2N_GAN"
 
 ###################

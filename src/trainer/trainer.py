@@ -200,7 +200,7 @@ class Trainer_GAN(BasicTrainer):
 
         # WGAN_GP hyper-parameter setting
         self.mode = 'WGAN' if 'WGAN' in cfg['training']['loss'] else 1
-        self.n_critic = 5 if self.mode == 'WGAN' else 1
+        self.n_critic = 1 if self.mode == 'WGAN' else 1
 
     @torch.no_grad()
     def test(self):
@@ -331,7 +331,7 @@ class Trainer_GAN(BasicTrainer):
                 losses.update(self.loss(None, (D_fake, D_real), None, None, 'WGAN_D'))
                 losses.update(self.loss(None, (D_inter, img_inter), None, None, 'GP'))
             else:
-                losses.update(self.loss((D_fake, D_real), None, 'DCGAN_D'))
+                losses.update(self.loss(None, (D_fake, D_real), None, None, 'DCGAN_D'))
 
             # zero grad for D optimizer
             self.optimizer['model_D'].zero_grad()
@@ -525,7 +525,7 @@ class Trainer_GAN_E2E(BasicTrainer):
 
         # WGAN_GP hyper-parameter setting
         self.mode = 'WGAN' if 'WGAN' in cfg['training']['loss'] else 1
-        self.n_critic = 5 if self.mode == 'WGAN' else 1
+        self.n_critic = 1 if self.mode == 'WGAN' else 1
 
     @torch.no_grad()
     def test(self):
@@ -632,7 +632,7 @@ class Trainer_GAN_E2E(BasicTrainer):
         for _ in range(self.n_critic):
             # forward
             clean_img = data_CL['clean']
-            denoised_img = self.model['denoiser'](data_N[noisy_data_name]).detach()
+            #denoised_img = self.model['denoiser'](data_N[noisy_data_name]).detach()
 
             generated_noisy_img = clean_img + (self.model['model_G'](clean_img)).detach()
             real_noisy_img = data_N[noisy_data_name]
@@ -640,8 +640,8 @@ class Trainer_GAN_E2E(BasicTrainer):
             DN_fake = self.model['model_DN'](generated_noisy_img)
             DN_real = self.model['model_DN'](real_noisy_img)
 
-            DC_fake = self.model['model_DC'](denoised_img)
-            DC_real = self.model['model_DC'](clean_img)
+            #DC_fake = self.model['model_DC'](denoised_img)
+            #DC_real = self.model['model_DC'](clean_img)
 
             # get losses for D
             losses = {}
@@ -663,12 +663,12 @@ class Trainer_GAN_E2E(BasicTrainer):
 
             if self.mode == 'WGAN':
                 losses.update(self.loss(None, (DN_fake, DN_real), None, None, loss_name='WGAN_D', change_name='WGAN_DN'))
-                losses.update(self.loss(None, (DC_fake, DC_real), None, None, loss_name='WGAN_D', change_name='WGAN_DC'))
+                #losses.update(self.loss(None, (DC_fake, DC_real), None, None, loss_name='WGAN_D', change_name='WGAN_DC'))
                 losses.update(self.loss(None, (DN_inter, N_img_inter), None, None, loss_name='GP', change_name='GP_N'))
-                losses.update(self.loss(None, (DC_inter, C_img_inter), None, None, loss_name='GP', change_name='GP_C'))
+                #losses.update(self.loss(None, (DC_inter, C_img_inter), None, None, loss_name='GP', change_name='GP_C'))
             else:
                 losses.update(self.loss(None, (DN_fake, DN_real), None, None, loss_name='DCGAN_D', change_name='DCGAN_DN'))
-                losses.update(self.loss(None, (DC_fake, DC_real), None, None, loss_name='DCGAN_D', change_name='DCGAN_DC'))
+                #losses.update(self.loss(None, (DC_fake, DC_real), None, None, loss_name='DCGAN_D', change_name='DCGAN_DC'))
 
             # zero grad for D optimizer
             self.optimizer['model_DN'].zero_grad()
@@ -680,7 +680,7 @@ class Trainer_GAN_E2E(BasicTrainer):
 
             # optimizer step
             self.optimizer['model_DN'].step()
-            self.optimizer['model_DC'].step()
+            #self.optimizer['model_DC'].step()
 
             # save losses for print
             for key in losses:
@@ -699,22 +699,23 @@ class Trainer_GAN_E2E(BasicTrainer):
         DN_fake_for_G = self.model['model_DN'](generated_noisy_img)
         denoised_generated_noisy_img = self.model['denoiser'](generated_noisy_img)
 
-        denoised_img = self.model['denoiser'](data_N[noisy_data_name])
-        denoised_map = data_N[noisy_data_name] - denoised_img
-        DC_fake_for_denoiser = self.model['model_DC'](denoised_img)
+        # denoised_img = self.model['denoiser'](data_N[noisy_data_name])
+        # denoised_map = data_N[noisy_data_name] - denoised_img
+        # DC_fake_for_denoiser = self.model['model_DC'](denoised_img)
 
         # get losses for G
         losses = {}
         if self.mode == 'WGAN':
             losses.update(self.loss(None, DN_fake_for_G,        None, None, loss_name='WGAN_G', change_name='WGAN_GN'))
-            losses.update(self.loss(None, DC_fake_for_denoiser, None, None, loss_name='WGAN_G', change_name='WGAN_GC'))
+            # losses.update(self.loss(None, DC_fake_for_denoiser, None, None, loss_name='WGAN_G', change_name='WGAN_GC'))
         else:
             losses.update(self.loss(None, DN_fake_for_G,        None, None, loss_name='DCGAN_G', change_name='DCGAN_GN'))
-            losses.update(self.loss(None, DC_fake_for_denoiser, None, None, loss_name='DCGAN_G', change_name='DCGAN_GC'))
+            # losses.update(self.loss(None, DC_fake_for_denoiser, None, None, loss_name='DCGAN_G', change_name='DCGAN_GC'))
             
+        losses.update(self.loss(None, denoised_generated_noisy_img, data_CL, None, loss_name='L1',   change_name='L1_cyclic'))
         losses.update(self.loss(None, denoised_generated_noisy_img, data_CL, None, loss_name='L2',   change_name='L2_cyclic'))
         losses.update(self.loss(None, generated_noise_map,  None, None, loss_name='batch_zero_mean', change_name='BZM_N'))
-        losses.update(self.loss(None, denoised_map,         None, None, loss_name='batch_zero_mean', change_name='BZM_C'))
+        # losses.update(self.loss(None, denoised_map,         None, None, loss_name='batch_zero_mean', change_name='BZM_C'))
 
         # zero grad
         self.optimizer['model_G'].zero_grad()

@@ -24,15 +24,15 @@ training:
   
   batch_size: 32
 
-  max_epoch: 36
+  max_epoch: 32
   
   init_lr: 1e-4
   scheduler:
     type: step
     step:
-      step_size: 3
-      gamma: 0.8
-  loss: 1.*WGAN_D + 10.*GP + 1.*WGAN_G + 1e-2*batch_zero_mean
+      step_size: 8
+      gamma: 0.32
+  loss: 4.*DCGAN_D + 1.*DCGAN_G + 1e-2*batch_zero_mean
   optimizer:
     type: Adam
     SGD:
@@ -41,8 +41,8 @@ training:
     Adam:
       betas: [0.9, 0.999]
 
-  warmup: False
-  warmup_iter: 100
+  warmup: True
+  warmup_iter: 200
 
 validation:
   dataset: SIDD_val

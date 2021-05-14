@@ -165,7 +165,7 @@ class CLtoN_G(nn.Module):
         return noise
 
 class CLtoN_G_modified(nn.Module):
-    def __init__(self, n_ch_in=3, n_ch_out=3, n_ch=64, n_rand=32, n_ext_block=5, n_indep_block=3, n_dep_block=2,
+    def __init__(self, n_ch_in=3, n_ch_out=3, n_ch=64, n_rand=32, n_indep_block=3, n_dep_block=2,
                     pipe_indep=False, pipe_dep=True):
         super().__init__()
 
@@ -176,7 +176,6 @@ class CLtoN_G_modified(nn.Module):
         self.n_ch = n_ch
         self.n_rand = n_rand
 
-        self.n_ext_block = n_ext_block
         self.n_indep_block = n_indep_block
         self.n_dep_block = n_dep_block
 
@@ -185,9 +184,7 @@ class CLtoN_G_modified(nn.Module):
 
         # feat extractor
         if self.pipe_dep:
-            self.ext_merge = nn.Sequential(nn.Conv2d(n_ch_in+n_rand, 2*n_ch, 3, padding=1, bias=True),
-                                           nn.ReLU(inplace=True))
-            self.ext = nn.Sequential(*[ResBlock(n_ch=2*n_ch, kernel_size=3, act='ReLU', bias=True, bn=bn) for i in range(self.n_ext_block)])
+            self.ext_merge = nn.Sequential(nn.Conv2d(n_ch_in+n_rand, 2*n_ch, kernel_size=1, bias=True))
 
         # pipe-indep
         if self.pipe_indep:
@@ -218,7 +215,6 @@ class CLtoN_G_modified(nn.Module):
             # feat extractor
             list_cat = [img_CL, rand_vec_map]
             feat_CL = self.ext_merge(torch.cat(list_cat, 1))
-            feat_CL = self.ext(feat_CL)
 
             # make initial dep noise feature
             feat_noise_dep = torch_distb.Normal(loc=feat_CL[:,:self.n_ch,:,:], scale=torch.clip(feat_CL[:,self.n_ch:,:,:], eps)).rsample()

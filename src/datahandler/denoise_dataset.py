@@ -60,8 +60,8 @@ class DenoiseDataSet(Dataset):
         self.gray_means = torch.Tensor([110.73])
         self.gray_stds  = torch.Tensor([63.66])
 
-        self.color_means = None # not implemented yet
-        self.color_stds  = None
+        self.color_means = torch.Tensor([128.])
+        self.color_stds  = torch.Tensor([64.])
 
     def __len__(self):
         if self.n_data is not None:

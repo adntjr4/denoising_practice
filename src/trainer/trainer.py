@@ -548,6 +548,7 @@ class Trainer_GAN_E2E(BasicTrainer):
 
         psnr_sum = 0.
         psnr_count = 0
+        stds = []
         for idx, data in enumerate(self.val_dataloader['dataset']):
             # to device
             if self.cfg['gpu'] != 'None':
@@ -557,11 +558,13 @@ class Trainer_GAN_E2E(BasicTrainer):
             noisy_image_name = 'real_noisy' if 'real_noisy' in data else 'syn_noisy'
 
             # forward (noisy image generation from clean image)
-            gened_noisy_img = data['clean'] + self.model['model_G'](data['clean'])
+            gened_noise_map = self.model['model_G'](data['clean'])
+            gened_noisy_img = data['clean'] + gened_noise_map
             denoised_image = self.model['denoiser'](data[noisy_image_name])
 
             # inverse normalize dataset & result tensor
             if self.val_cfg['normalization']:
+                gened_noise_map = self.val_dataloader['dataset'].dataset.inverse_normalize(gened_noise_map, self.cfg['gpu'] != 'None')
                 gened_noisy_img = self.val_dataloader['dataset'].dataset.inverse_normalize(gened_noisy_img, self.cfg['gpu'] != 'None')
                 denoised_image  = self.val_dataloader['dataset'].dataset.inverse_normalize(denoised_image, self.cfg['gpu'] != 'None')
                 data            = self.val_dataloader['dataset'].dataset.inverse_normalize_data(data, self.cfg['gpu'] != 'None')
@@ -571,6 +574,9 @@ class Trainer_GAN_E2E(BasicTrainer):
                 psnr_value = psnr(denoised_image, data['clean'])
                 psnr_sum += psnr_value
                 psnr_count += 1
+
+            std = float(torch.std(gened_noise_map))
+            stds.append(std)
 
             # image save
             if self.val_cfg['save_image']:
@@ -589,17 +595,22 @@ class Trainer_GAN_E2E(BasicTrainer):
                 if 'clean' in data:
                     cv2.imwrite(os.path.join(img_save_path, '%04d_CL.png'%idx), tensor2np(clean_img))
                 cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), tensor2np(noisy_img))
-                cv2.imwrite(os.path.join(img_save_path, '%04d_G.png'%idx), tensor2np(gened_img))
+                cv2.imwrite(os.path.join(img_save_path, '%04d_N_gen_(%.2f).png'%(idx, std)), tensor2np(gened_img))
                 cv2.imwrite(os.path.join(img_save_path, denoi_name), tensor2np(denoi_img))
 
             # print temporal msg
             print('[%s] %04d/%04d evaluating...'%(status, idx, self.val_dataloader['dataset'].__len__()), end='\r')
 
-        # info 
+        # info
+        info = '[%s] Done! '%status
+
         if 'clean' in data:
-            self.logger.val('[%s] Done! PSNR : %.2f dB'%(status, psnr_sum/psnr_count))
-        else:
-            self.logger.val('[%s] Done!'%status)
+            info += 'PSNR : %.2f dB, '%(psnr_sum/psnr_count)
+
+        info += 'mean of std : %.2f, '%np.mean(stds)
+        info += 'std of std : %.2f, '%np.std(stds)
+
+        self.logger.val(info)
 
     def _set_module(self):
         module = {}

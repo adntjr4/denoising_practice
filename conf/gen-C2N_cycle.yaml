@@ -30,10 +30,10 @@ training:
   mask: None # e.g.) None bypass stf_64-rnd
   crop_size: [128, 128]
   aug: ['hflip', 'rot']
-  normalization: False
+  normalization: True
   n_repeat: 1
   
-  batch_size: 16
+  batch_size: 32
 
   max_epoch: 32
   
@@ -43,7 +43,7 @@ training:
     step:
       step_size: 8
       gamma: 0.32
-  loss: 4.*DCGAN_D + 1.*DCGAN_G + 1.*L1 + 1e-2*batch_zero_mean
+  loss: 4.*DCGAN_D + 1.*DCGAN_G + 1e-2*L1 + 1e-2*batch_zero_mean
   optimizer:
     type: Adam
     SGD:
@@ -60,7 +60,7 @@ validation:
   crop_size: None # [64, 64]
   add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: None # e.g.) None bypass stf_64-rnd
-  normalization: False
+  normalization: True
   n_data: 256
 
   val: True
@@ -83,7 +83,7 @@ test:
   crop_size: None # [64, 64]
   add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: bypass # e.g.) None bypass stf_64-rnd
-  normalization: False
+  normalization: True
   # power_cliping: 2
 
   save_image: True

@@ -50,6 +50,7 @@ validation:
   normalization: False
   multiple_cliping: 4
   n_data: 256
+  pd: 4
 
   val: True
   save_image: True
@@ -72,5 +73,6 @@ test:
   mask: bypass # e.g.) None bypass stf_64-rnd
   normalization: False
   multiple_cliping: 4
+  pd: 4
 
   save_image: True

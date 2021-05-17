@@ -351,6 +351,8 @@ class BasicTrainer(Output):
             other_args['multiple_cliping'] = cfg['multiple_cliping']
         if 'keep_on_mem' in cfg:
             other_args['keep_on_mem'] = cfg['keep_on_mem']
+        if 'pd' in cfg:
+            other_args['pd'] = cfg['pd']
         return other_args
 
     def summary(self):

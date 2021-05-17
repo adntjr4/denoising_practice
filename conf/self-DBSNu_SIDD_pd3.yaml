@@ -48,6 +48,7 @@ validation:
   mask: bypass # e.g.) None bypass stf_64-rnd
   normalization: False
   multiple_cliping: 3
+  pd: 3
 
   val: True
   save_image: True
@@ -70,5 +71,6 @@ test:
   mask: bypass # e.g.) None bypass stf_64-rnd
   normalization: False
   multiple_cliping: 3
+  pd: 3
 
   save_image: True

@@ -1,3 +1,4 @@
+import sys
 import math
 
 import torch
@@ -17,7 +18,8 @@ class DBSN_Likelihood(nn.Module):
         if est_net is None:
             self.estn = CNNest(in_ch=in_ch, out_ch=num_ch_nlf)
         else:
-            self.estn = est_net(in_ch=in_ch, out_ch=num_ch_nlf)
+            net = getattr(sys.modules[__name__], est_net)
+            self.estn = net(in_ch=in_ch, out_ch=num_ch_nlf)
 
     def forward(self, x):
         # forward BSN

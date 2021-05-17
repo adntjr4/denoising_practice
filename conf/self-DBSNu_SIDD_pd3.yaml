@@ -1,10 +1,9 @@
 
-model: 
-  type: DBSN_Likelihood
+model:
+  type: DBSN
   kwargs:
     in_ch: 3
-    nlf_scalar: True
-    est_net: CNNest3
+    out_ch: 3
 
 model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 
@@ -14,12 +13,11 @@ training:
   dataset: prep_SIDD
   add_noise: None # e.g.) None bypass uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
   mask: bypass # e.g.) None bypass stf_0.7-rnd
-  crop_size: [128, 128]
-  #pixel_shuffle: 2
+  crop_size: [96, 96]
   aug: ['hflip', 'rot']
   normalization: False
   n_repeat: 1
-  pd: 2
+  pd: 3
   
   batch_size: 16
 
@@ -31,7 +29,7 @@ training:
     step:
       step_size: 8
       gamma: 0.32
-  loss: 1.*self_Gau_likelihood
+  loss: 1.*self_L2
   optimizer:
     type: Adam
     SGD:
@@ -49,8 +47,7 @@ validation:
   add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: bypass # e.g.) None bypass stf_64-rnd
   normalization: False
-  # multiple_cliping: 2
-  n_data: 256
+  multiple_cliping: 3
 
   val: True
   save_image: True
@@ -72,6 +69,6 @@ test:
   add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: bypass # e.g.) None bypass stf_64-rnd
   normalization: False
-  # multiple_cliping: 2
+  multiple_cliping: 3
 
   save_image: True

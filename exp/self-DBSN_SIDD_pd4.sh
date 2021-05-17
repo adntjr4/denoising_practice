@@ -11,8 +11,8 @@ done
 
 ##### Setting #####
 
-session="self-DBSN_pd2-SIDD"
-config="self-DBSN"
+session="self-DBSN_SIDD_pd4"
+config="self-DBSN_SIDD_pd4"
 
 ###################
 

@@ -11,8 +11,7 @@ done
 
 ##### Setting #####
 
-# session="self-DBSN-BSD"
-session="tt"
+session="self-DBSN-SIDD"
 config="self-DBSN"
 
 ###################

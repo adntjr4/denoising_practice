@@ -11,7 +11,7 @@ done
 
 ##### Setting #####
 
-session="gen-C2Nm"
+session="gen-C2Nm_WGAN_D40"
 config="gen-C2N_GAN"
 
 ###################

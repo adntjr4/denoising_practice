@@ -11,7 +11,7 @@ done
 
 ##### Setting #####
 
-session="gen-C2N_cycle"
+session="gen-C2N_cycle_WGAN_vaniliaC2N_gp-2"
 config="gen-C2N_cycle"
 
 ###################

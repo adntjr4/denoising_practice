@@ -80,6 +80,9 @@ class self_Gau_likelihood_DBSN():
     def __call__(self, input_data, model_output, data, model):
         target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
         x_mean, mu_var, n_var = model_output
+        x_mean = x_mean.detach()
+
+        b,c,w,h = x_mean.shape
 
         mu_var = mu_var.permute(0,3,4,1,2) # b,w,h,c,c
         n_var = n_var.permute(0,3,4,1,2)   # b,w,h,c,c
@@ -90,12 +93,13 @@ class self_Gau_likelihood_DBSN():
         loss = torch.matmul(torch.transpose(y_muy,3,4), torch.inverse(n_var + mu_var))
         loss = torch.matmul(loss, y_muy) # b,w,h,1,1
         loss = loss.squeeze(-1).squeeze(-1) # b,w,h
-
+        
         # second term in paper (log)
         loss += torch.log(torch.clamp(torch.det(n_var), eps)) # b,w,h
 
         # third term in paper (trace)
-        loss += torch.diagonal(torch.matmul(torch.inverse(n_var), mu_var), dim1=-2, dim2=-1).sum(-1)
+        I_matrix = eps*torch.eye(c, device=n_var.device).repeat(b,w,h,1,1)
+        loss += torch.diagonal(torch.matmul(torch.inverse(n_var+I_matrix), mu_var), dim1=-2, dim2=-1).sum(-1)
         
         # divide with 2
         loss /= 2

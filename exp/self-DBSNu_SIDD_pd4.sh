@@ -11,7 +11,8 @@ done
 
 ##### Setting #####
 
-session="self-DBSNu_SIDD_pd4"
+#session="self-DBSNu_SIDD_pd4"
+session="tt"
 config="self-DBSNu_SIDD_pd4"
 
 ###################

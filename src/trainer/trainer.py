@@ -199,7 +199,7 @@ class Trainer_GAN(BasicTrainer):
         torch.cuda.manual_seed(seed)
 
         # WGAN_GP hyper-parameter setting
-        self.mode = 'WGAN' if 'WGAN' in cfg['training']['loss'] else 1
+        self.mode = 'WGAN' if 'WGAN' in cfg['training']['loss'] else None
         self.n_critic = 1 if self.mode == 'WGAN' else 1
 
     @torch.no_grad()
@@ -332,6 +332,7 @@ class Trainer_GAN(BasicTrainer):
                 losses.update(self.loss(None, (D_inter, img_inter), None, None, 'GP'))
             else:
                 losses.update(self.loss(None, (D_fake, D_real), None, None, 'DCGAN_D'))
+                losses.update(self.loss(None, (D_fake, D_real), None, None, 'LSGAN_D'))
 
             # zero grad for D optimizer
             self.optimizer['model_D'].zero_grad()
@@ -365,7 +366,9 @@ class Trainer_GAN(BasicTrainer):
             losses.update(self.loss(None, D_fake_for_G, None, None, 'WGAN_G'))
         else:
             losses.update(self.loss(None, D_fake_for_G, None, None, 'DCGAN_G'))
+            losses.update(self.loss(None, D_fake_for_G, None, None, 'LSGAN_G'))
         losses.update(self.loss(None, generated_noise_map, None, None, 'batch_zero_mean'))
+        losses.update(self.loss(None, generated_noise_map, None, None, 'zero_mean'))
 
         # zero grad
         self.optimizer['model_G'].zero_grad()

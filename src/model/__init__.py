@@ -37,6 +37,9 @@ model_module_dict = {
 
                 'CLtoN_D_one_out': 'CLtoN',
                 'LtoN_D_one_out': 'CLtoN',
+
+                # custom
+                'ISPGAN_Generator': 'custom',
                 }
 
 def get_model_object(model_name):

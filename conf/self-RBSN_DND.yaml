@@ -16,7 +16,7 @@ training:
   #pixel_shuffle: 2
   aug: ['hflip', 'rot']
   normalization: False
-  n_repeat: 32
+  n_repeat: 1
   pd: 4
   
   batch_size: 16
@@ -29,7 +29,7 @@ training:
     step:
       step_size: 16
       gamma: 0.32
-  loss: 1*self_Gau_likelihood + 1e-2*self_L2 + 1e-2*neg_nlf_det + 1*n_var + 1*mu_var
+  loss: 1*self_Gau_likelihood + 1e-1*self_L2 + 1e-3*neg_nlf_det + 1*n_var + 1*mu_var
   optimizer:
     type: Adam
     SGD:

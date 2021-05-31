@@ -21,13 +21,11 @@ My custom repository for multiple Denoising task.
 
 ### development schedule (inverse time line)
 
-- Generative noise model training.
-    - [ ] revise codes for GAN (e.g. loss, trainer, config, etc)
-    - [ ] C2N reproduction
     
 - basic modules for deep-learning.
     - [ ] Add test code
     - [ ] Add summary printing module
+    - [ ] Save configuration file and network code
     - [ ] Add tensor board output
     - [x] Use "start_epoch" and "interval_epoch"
     - [x] Add validation image out

@@ -40,8 +40,8 @@ class Trainer(BasicTrainer):
 
             # forward
             input_data = [data[arg] for arg in self.cfg['model_input']]
-            if hasattr(self.model['denoiser'], 'denoise'):
-                denoised_image = self.model['denoiser'].denoise(*input_data)
+            if hasattr(self.model['denoiser'].module, 'denoise'):
+                denoised_image = self.model['denoiser'].module.denoise(*input_data)
             else:
                 denoised_image = self.model['denoiser'](*input_data)
 
@@ -61,7 +61,8 @@ class Trainer(BasicTrainer):
                 # to cpu
                 if 'clean' in data:
                     clean_img = data['clean'].squeeze().cpu()
-                noisy_img = data[self.cfg['model_input']].squeeze().cpu()
+                noisy_img = data['real_noisy'] if 'real_noisy' in data else data['syn_noisy']
+                noisy_img = noisy_img.squeeze().cpu()
                 denoi_img = denoised_image.squeeze().cpu()
 
                 # write psnr value on file name

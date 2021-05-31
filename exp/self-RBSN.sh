@@ -11,8 +11,8 @@ done
 
 ##### Setting #####
 
-session="self-DBSN_CBSD"
-config="self-DBSN"
+session="self-RBSN_CBSD"
+config="self-RBSN"
 
 ###################
 

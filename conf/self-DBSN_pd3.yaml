@@ -21,13 +21,13 @@ training:
 
   max_epoch: 20
   
-  init_lr: 3e-4
+  init_lr: 1e-3
   scheduler:
     type: step
     step:
-      step_size: 6
-      gamma: 0.32
-  loss: 1.*self_L2 + 1.*self_Gau_likelihood_DBSN
+      step_size: 10
+      gamma: 0.1
+  loss: 1.*self_Gau_likelihood
   optimizer:
     type: Adam
     SGD:
@@ -59,7 +59,7 @@ checkpoint:
   interval_epoch: 10
 
 log:
-  interval_iter: 10
+  interval_iter: 50
 
 test:
   dataset: PD3_CBSD68_25

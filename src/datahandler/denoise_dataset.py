@@ -414,7 +414,6 @@ class DenoiseDataSet(Dataset):
             self.pre_loaded.append(data)
 
     ##### Image saving functions #####
-            
     def save_all_image(self, dir, clean=False, syn_noisy=False, real_noisy=False):
         for idx in range(len(self.img_paths)):
             data = self.__getitem__(idx)
@@ -427,7 +426,6 @@ class DenoiseDataSet(Dataset):
                 cv2.imwrite(os.path.join(dir, '%04d_RN.png'%idx), tensor2np(data['real_noisy']))
 
             print('image %04d saved!'%idx)
-
 
     ##### etc #####
 

@@ -11,8 +11,8 @@ done
 
 ##### Setting #####
 
-session="self-RBSN_DIV2K_CBSD"
-config="self-RBSN_DIV2K"
+session="self-RBSN_nlf_DIV2K_CBSD"
+config="self-RBSN_nlf_DIV2K"
 
 ###################
 

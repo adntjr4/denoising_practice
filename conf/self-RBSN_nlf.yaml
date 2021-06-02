@@ -1,6 +1,6 @@
 
 model: 
-  type: RBSN
+  type: RBSN_nlf
   kwargs:
     in_ch: 3
 
@@ -28,7 +28,7 @@ training:
     step:
       step_size: 16
       gamma: 0.32
-  loss: 1*self_Gau_likelihood + 1e-1*self_L2 + 5e-2*neg_nlf_det + 1*n_var + 1*mu_var
+  loss: 1*self_L2 + 1*self_Gau_likelihood + 1*n_var + 1*mu_var
   optimizer:
     type: Adam
     SGD:

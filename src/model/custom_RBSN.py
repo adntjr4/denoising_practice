@@ -4,21 +4,25 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 eps = 1e-6
+
 
 class RBSN(nn.Module):
     '''
     Main differences are I divide network for 3 output respectively. (which are x_mean, mu_var. n_var)
     I think mu_var don't need to use blind-spot network.
     '''
-    def __init__(self, in_ch=3):
+    def __init__(self, in_ch=3, nlf_net=None):
         super().__init__()
 
         self.in_ch = in_ch
 
         self.bls_net = DBSN(in_ch=in_ch, out_ch=in_ch*2)
-        self.nlf_net = CNNest(in_ch=in_ch, out_ch=in_ch)
+
+        if nlf_net == None:
+            self.nlf_net = CNNest(in_ch=in_ch, out_ch=in_ch)
+        else:
+            self.nlf_net = nlf_net()
 
     def forward(self, x):
         b,c,w,h = x.shape
@@ -201,3 +205,54 @@ class CentralMaskedConv2d(nn.Conv2d):
     def forward(self, x):
         self.weight.data *= self.mask
         return super().forward(x)
+
+class LocalVarianceNet(nn.Module):
+    def __init__(self, in_ch, window_size):
+        super().__init__()
+
+        self.in_ch = in_ch
+        self.ws = window_size
+
+        self.average_net = nn.Conv2d(in_ch, in_ch, kernel_size=self.ws, padding=self.ws//2, padding_mode='circular', bias=False, groups=in_ch)
+        self.average_net.weight.data.fill_(1/(self.ws**2))
+        for param in self.average_net.parameters():
+            param.requires_grad = False
+
+    def forward(self, x):
+        squared = torch.square(x)
+        return self.average_net(squared) - torch.square(self.average_net(x))        
+
+class NLFNet(nn.Module):
+    def __init__(self, window_size=9, real=False):
+        super().__init__()
+
+        self.gamma = 2.0
+        self.real = real
+
+        self.lvn3 = LocalVarianceNet(3, window_size)
+        self.lvn1 = LocalVarianceNet(1, window_size)
+
+    def forward(self, x):
+        b,c,w,h = x.shape
+
+        alpha_map = self.lvn3(x).sum(1, keepdim=True)/3
+        beta_map = self.lvn1(x.sum(1, keepdim=True)/3)
+
+        weight = self.lvn3(x-x[:, [2,1,0]]).sum(1, keepdim=True)/3
+
+        w_sum = weight.sum()
+        weight = torch.exp(-self.gamma * w*h * weight / w_sum)
+
+        # weight = F.softmax(weight.view(1,1,w*h), dim=2).view(1,1,w,h)
+
+        w_sum = weight.sum()
+        if self.real:
+            nlf = 9/4*(weight*(alpha_map-beta_map)).sum() / w_sum
+            return torch.sqrt(nlf) * torch.ones((b,c,w,h), device=x.device)
+        else:
+            nlf = 3/2*(weight*(alpha_map-beta_map)).sum() / w_sum
+            return torch.sqrt(nlf) * torch.ones((b,c,w,h), device=x.device)
+
+class RBSN_nlf(RBSN):
+    def __init__(self, in_ch):
+        super().__init__(in_ch=in_ch, nlf_net=NLFNet)

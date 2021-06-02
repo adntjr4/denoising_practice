@@ -9,14 +9,14 @@ model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 trainer: Trainer
 
 training:
-  dataset: Synthesized_CBSD432_25
-  add_noise: None # e.g.) None bypass uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
+  dataset: DIV2K_train
+  add_noise: gau-25. # e.g.) None bypass uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
   mask: bypass # e.g.) None bypass stf_0.7-rnd
   crop_size: [128, 128]
   #pixel_shuffle: 2
   aug: ['hflip', 'rot']
   normalization: False
-  n_repeat: 32
+  n_repeat: 20
   
   batch_size: 16
 

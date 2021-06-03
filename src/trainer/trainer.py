@@ -6,15 +6,19 @@ import numpy as np
 import torch
 import torch.autograd as autograd
 
+from ..util.dnd_submission.bundle_submissions import bundle_submissions_srgb
+from ..util.dnd_submission.dnd_denoise import denoise_srgb
+from ..util.dnd_submission.pytorch_wrapper import pytorch_denoiser
+
 from .trainer_basic import BasicTrainer, status_len
 from ..model import get_model_object
-from ..util.util import tensor2np, psnr, ssim
+from ..util.util import tensor2np, psnr, ssim, pixel_shuffle_up_sampling
 
 
 class Trainer(BasicTrainer):
     def __init__(self, cfg):
         super().__init__(cfg)
-    
+
     @torch.no_grad()
     def test(self):
         # initializing
@@ -23,6 +27,11 @@ class Trainer(BasicTrainer):
         # evaluation mode
         for m in self.model.values():
             m.eval() 
+
+        # dnd benchmark evaluation is seperated.
+        if self.cfg['test']['dataset'] == 'DND_benchmark':
+            self.test_DND()
+            exit()
 
         # make directories for image saving
         if self.test_cfg['save_image']:
@@ -47,8 +56,8 @@ class Trainer(BasicTrainer):
 
             # inverse normalize dataset (if normalization is on)
             if self.test_cfg['normalization']:
-                denoised_image = self.teset_data_set.inverse_normalize(denoised_image, self.cfg['gpu'] != 'None')
-                data = self.test_data_set.inverse_normalize_data(data, self.cfg['gpu'] != 'None')
+                denoised_image = self.test_dataloader['dataset'].dataset.inverse_normalize(denoised_image, self.cfg['gpu'] != 'None')
+                data = self.test_dataloader['dataset'].dataset.inverse_normalize_data(data, self.cfg['gpu'] != 'None')
 
             # evaluation
             if 'clean' in data:
@@ -87,6 +96,62 @@ class Trainer(BasicTrainer):
             self.logger.val('[%s] Done! PSNR : %.2f dB'%(status, psnr_sum/psnr_count))
         else:
             self.logger.val('[%s] Done!'%status)
+
+    @torch.no_grad()
+    def test_DND(self):
+        # make directories for image saving
+        if self.test_cfg['save_image']:
+            img_save_path = self.get_dir('img/DND_%03d'%self.epoch)
+            os.makedirs(img_save_path, exist_ok=True)
+
+        # denoiser wrapping
+        if hasattr(self.model['denoiser'].module, 'denoise'):
+            denoiser = self.model['denoiser'].module.denoise
+        else:
+            denoiser = self.model['denoiser']
+
+        def wrap_denoiser(Inoisy, nlf, idx):
+            noisy = 255 * torch.from_numpy(Inoisy)
+
+            # to device
+            if self.cfg['gpu'] != 'None':
+                noisy = noisy.cuda()
+
+            noisy = autograd.Variable(noisy)
+
+            # processing
+            noisy = noisy.permute(2,0,1)
+            noisy = self.test_dataloader['dataset'].dataset._pre_processing({'real_noisy': noisy})['real_noisy']
+            noisy = self.test_dataloader['dataset'].dataset._post_processing({'real_noisy': noisy})['real_noisy']
+
+            noisy = noisy.view(1,noisy.shape[0], noisy.shape[1], noisy.shape[2])
+
+            # denoising
+            denoised = denoiser(noisy)
+
+            # inverse normalize dataset (if normalization is on)
+            if self.test_cfg['normalization']:
+                denoised = self.test_dataloader['dataset'].dataset.inverse_normalize_data({'real_noisy': denoised}, self.cfg['gpu'] != 'None')['real_noisy']
+            if 'pd' in self.test_cfg:
+                denoised = pixel_shuffle_up_sampling(denoised, int(self.test_cfg['pd']))
+
+            denoised = denoised[0,...].cpu().numpy()
+            denoised = np.transpose(denoised, [1,2,0])
+
+            # image save
+            if self.test_cfg['save_image']:
+                cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), 255*Inoisy)
+                cv2.imwrite(os.path.join(img_save_path, '%04d_DN.png'%idx), denoised)
+
+            return denoised / 255
+
+        denoise_srgb(wrap_denoiser, './dataset/DND/dnd_2017', img_save_path)
+
+        bundle_submissions_srgb(img_save_path)
+
+        # info 
+        status = (' test %03d '%self.epoch).ljust(status_len) #.center(status_len)
+        self.logger.val('[%s] Done!'%status)
 
     @torch.no_grad()
     def validation(self):

@@ -61,13 +61,27 @@ class NLFNet(nn.Module):
 # noisy_image = data['real_noisy']
 # nlf = 625.0
 
-nlf_net = NLFNet(real=True)
-dataset = get_dataset_object('prep_SIDD')(crop_size=(128,128))
-data = dataset.__getitem__(5)
-noisy_image = data['real_noisy']
-clean_image = data['clean']
-noise_map = noisy_image - clean_image
-nlf = torch.var(noise_map)
+# nlf_net = NLFNet(real=True)
+# dataset = get_dataset_object('prep_SIDD')(crop_size=(160,160))
+# ratio = []
+# for i in range(500):
+#     data = dataset.__getitem__(i)
+#     noisy_image = data['real_noisy']
+#     clean_image = data['clean']
+#     noise_map = noisy_image - clean_image
+#     nlf = torch.var(noise_map, dim=(-1,-2))
+#     ratio.append([nlf[0]/nlf[1], nlf[2]/nlf[1]])
 
-print('nlf: ', float(nlf_net(noisy_image.unsqueeze(0))))
-print('gt: ', float(nlf))
+# ratio = torch.Tensor(ratio)
+
+# print('nlf: ', float(nlf_net(noisy_image.unsqueeze(0))))
+# print('gt: ', nlf)
+# print(sum(ratio[:,0])/len(ratio), sum(ratio[:,1])/len(ratio))
+
+l = torch.Tensor([1,2,3])
+t = torch.Tensor([1.0])
+
+print(t*l)
+a = (t*l).repeat(2,4,4,1).permute(0,3,1,2)
+print(a)
+

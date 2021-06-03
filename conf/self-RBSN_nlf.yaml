@@ -2,7 +2,7 @@
 model: 
   type: RBSN_nlf
   kwargs:
-    in_ch: 3
+    real: False
 
 model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 

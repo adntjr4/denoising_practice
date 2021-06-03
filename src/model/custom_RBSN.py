@@ -12,7 +12,7 @@ class RBSN(nn.Module):
     Main differences are I divide network for 3 output respectively. (which are x_mean, mu_var. n_var)
     I think mu_var don't need to use blind-spot network.
     '''
-    def __init__(self, in_ch=3, nlf_net=None):
+    def __init__(self, in_ch=3, nlf_net=None, real=True):
         super().__init__()
 
         self.in_ch = in_ch
@@ -22,7 +22,7 @@ class RBSN(nn.Module):
         if nlf_net == None:
             self.nlf_net = CNNest(in_ch=in_ch, out_ch=in_ch)
         else:
-            self.nlf_net = nlf_net()
+            self.nlf_net = nlf_net(real=real)
 
     def forward(self, x):
         b,c,w,h = x.shape
@@ -247,12 +247,14 @@ class NLFNet(nn.Module):
 
         w_sum = weight.sum()
         if self.real:
+            RGB_ratio = [2.0, 1.0, 2.0]
             nlf = 9/4*(weight*(alpha_map-beta_map)).sum() / w_sum
-            return torch.sqrt(nlf) * torch.ones((b,c,w,h), device=x.device)
+            nlf = torch.stack([ratio * torch.sqrt(nlf) for ratio in RGB_ratio])
+            return nlf.repeat(b,w,h,1).permute(0,3,1,2)
         else:
             nlf = 3/2*(weight*(alpha_map-beta_map)).sum() / w_sum
-            return torch.sqrt(nlf) * torch.ones((b,c,w,h), device=x.device)
+            return torch.sqrt(nlf).repeat(b,w,h,1).permute(0,3,1,2)
 
 class RBSN_nlf(RBSN):
-    def __init__(self, in_ch):
-        super().__init__(in_ch=in_ch, nlf_net=NLFNet)
+    def __init__(self, real=True):
+        super().__init__(in_ch=3, nlf_net=NLFNet, real=real)

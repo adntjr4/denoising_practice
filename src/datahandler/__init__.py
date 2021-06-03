@@ -11,6 +11,7 @@ dataset_module = {
                     # DND
                     'DND'       : 'DND',
                     'prep_DND'  : 'DND',
+                    'DND_benchmark'  : 'DND',
 
                     # SIDD
                     'SIDD'      : 'SIDD',

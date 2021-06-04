@@ -4,8 +4,95 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from ..util.util import pixel_shuffle_down_sampling, pixel_shuffle_up_sampling
+from . import get_model_object
+
+
 eps = 1e-6
 
+class RBSN_fusion(nn.Module):
+    def __init__(self, in_ch, nlf_net=None, fusion_net='DnCNN_B', pd=4, real=True):
+        super().__init__()
+        
+        self.in_ch      = in_ch
+        self.nlf_net    = nlf_net(real=real) if nlf_net is not None else None
+        self.pd         = pd
+        self.real       = real
+        self.fusion_net = get_model_object(fusion_net)(in_ch=in_ch, out_ch=in_ch) if fusion_net is not None else None
+
+        bsn_out_ch = self.in_ch if nlf_net is None else 2*self.in_ch
+        self.bsn = DBSN(in_ch=in_ch, out_ch=bsn_out_ch)
+
+    def denoise(self, x):
+        _, _, _, _, denoised = self.forward(x)
+        return denoised
+
+    def forward(self, x):
+        # PD
+        pd_x = pixel_shuffle_down_sampling(x, self.pd)
+
+        # blind-spot network forward
+        x_mean = self.bsn(pd_x)
+
+        # post-forward processing
+        if self.nlf_net is not None:
+            # network forward
+            x_mean, mu_var = x_mean[:,:self.in_ch], x_mean[:,self.in_ch:]
+            n_var = self.nlf_net(pd_x)
+
+            # inverse PD
+            x_mean = pixel_shuffle_up_sampling(x_mean, self.pd)
+            mu_var = pixel_shuffle_up_sampling(mu_var, self.pd)
+            n_var  = pixel_shuffle_up_sampling(n_var, self.pd)
+
+            # make diagonal matrix
+            mu_var = self.make_diag_covar_form(mu_var)
+            n_var  = self.make_diag_covar_form(n_var)
+
+            # first denoising (using bayes inference)
+            pd_denoised = self.bayes_inference(x, x_mean, mu_var, n_var)
+        else:
+            # inverse PD
+            x_mean = pixel_shuffle_up_sampling(x_mean, self.pd)
+            mu_var, n_var = None, None
+            pd_denoised = x_mean
+
+        # fusion module
+        if self.fusion_net is not None:
+            denoised = self.fusion_net(pd_denoised)
+        else:
+            denoised = pd_denoised
+                
+        return x_mean, mu_var, n_var, pd_denoised, denoised
+
+    def bayes_inference(self, x, x_mean, mu_var, n_var):
+        b,c,w,h = x_mean.shape
+        x_reshape = x.permute(0,2,3,1).unsqueeze(-1) # b,w,h,c,1
+        x_mean_reshape = x_mean.permute(0,2,3,1).unsqueeze(-1) # b,w,h,c,1
+        mu_var_reshape = mu_var.permute(0,3,4,1,2) # b,w,h,c,c
+        n_var_reshape = n_var.permute(0,3,4,1,2) # b,w,h,c,c
+        epsI = eps * torch.eye(c, device=x_mean.device).repeat(b,w,h,1,1)
+
+        mu_var_inv = torch.inverse(mu_var + epsI)
+        n_var_inv  = torch.inverse(n_var + epsI)
+
+        y_var_inv = torch.inverse(mu_var_inv + n_var_inv + epsI) # b,w,h,c,c
+        cross_sum = torch.matmul(n_var_inv, x_reshape) + torch.matmul(mu_var_inv, x_mean)
+
+        results = torch.matmul(y_var_inv, cross_sum).squeeze(-1) # b,w,h,c
+
+        return results.permute(0,3,1,2) # b,c,w,h
+
+    def make_diag_covar_form(self, m):
+        '''
+        square values of diagonal for validate matrix 
+        m      : b,c,w,h
+        return : b,c,c,w,h
+        '''
+        diag = torch.square(m)
+        diag = diag.permute(0,2,3,1)       # b,w,h,c
+        diag = torch.diag_embed(diag)   # b,w,h,c,c
+        return diag.permute(0,3,4,1,2)
 
 class RBSN(nn.Module):
     '''
@@ -17,7 +104,7 @@ class RBSN(nn.Module):
 
         self.in_ch = in_ch
 
-        self.bls_net = DBSN(in_ch=in_ch, out_ch=in_ch*2)
+        self.bsn = DBSN(in_ch=in_ch, out_ch=in_ch*2)
 
         if nlf_net == None:
             self.nlf_net = CNNest(in_ch=in_ch, out_ch=in_ch)
@@ -28,7 +115,7 @@ class RBSN(nn.Module):
         b,c,w,h = x.shape
 
         # forward blind-spot network
-        x_mean = self.bls_net(x)
+        x_mean = self.bsn(x)
         x_mean, mu_var = x_mean[:,:self.in_ch], x_mean[:,self.in_ch:]
 
         # forward mu-variance network

@@ -42,6 +42,7 @@ model_module_dict = {
                 'ISPGAN_Generator': 'custom_ISPGAN',
                 'RBSN': 'custom_RBSN',
                 'RBSN_nlf': 'custom_RBSN',
+                'RBSN_fusion': 'custom_RBSN',
                 }
 
 def get_model_object(model_name):

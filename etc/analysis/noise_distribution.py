@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 import torch
 import scipy.stats as stats
 
-from src.dataset.denoise_dataset import get_dataset_object
+from src.datahandler import get_dataset_object
+from src.util.util import imwrite_test
 
 def main():
     # initialization
@@ -18,7 +19,7 @@ def main():
     args = args.parse_args()
     assert args.dataset is not None, 'dataset name is required'
 
-    dataset = get_dataset_object(args.dataset)(add_noise=None, crop_size=None, n_repeat=1)
+    dataset = get_dataset_object(args.dataset)()
 
     graph_img_path = './etc/analysis/results/noise_distribution/'
     plt_min = -50
@@ -39,12 +40,13 @@ def main():
     B_mean, B_std = 0., 0.
 
     data_len = dataset.__len__()
+    data_len = 1
     for data_idx in range(data_len):
-        data = dataset.__getitem__(data_idx)
+        data = dataset.__getitem__(1)
         if 'syn_noisy' in data:
             noise_residual = data['syn_noisy'] - data['clean']
         else:
-            noise_residual = data['true_noisy'] - data['clean']
+            noise_residual = data['real_noisy'] - data['clean']
 
         noise_residual = noise_residual.view(3, -1)
 
@@ -63,6 +65,16 @@ def main():
         G_std  += noise_residual[1].std().item()
         B_mean += noise_residual[2].mean().item()
         B_std  += noise_residual[2].std().item()
+
+        print('mean of RGB: ', data['clean'].mean(dim=(-1,-2)))
+        imwrite_test(data['clean'])
+        print(data['real_noisy'].shape)
+        print('R max: ', (data['real_noisy'][0]>254.0).sum())
+        print('R min: ', (data['real_noisy'][0]<1.0).sum())
+        print('G max: ', (data['real_noisy'][1]>254.0).sum())
+        print('G min: ', (data['real_noisy'][1]<1.0).sum())
+        print('B max: ', (data['real_noisy'][2]>254.0).sum())
+        print('B min: ', (data['real_noisy'][2]<1.0).sum())
 
         print('img%d is done'%data_idx)
 

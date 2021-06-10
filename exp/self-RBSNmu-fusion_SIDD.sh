@@ -11,11 +11,10 @@ done
 
 ##### Setting #####
 
-session="self-RBSN_nlf_nc_DND"
-config="self-RBSN_nlf_nc_DND"
+session="self-RBSNmu-fusion_SIDD"
+config="self-RBSNmu-fusion_SIDD"
 
 ###################
 
 cd ..
 python train.py --session_name $session --config $config --resume $resume --gpu $gpu_id --thread $n_thread
-# python test.py --session_name $session --config $config --ckpt_epoch 64 --gpu $gpu_id --thread $n_thread

@@ -7,15 +7,16 @@ from src.datahandler import get_dataset_object
 from src.util.util import pixel_shuffle_up_sampling
 
 # train_dataset = get_dataset_object('PD4_CBSD68_50')()
-train_dataset = get_dataset_object('SIDD_val')(pd=2)
-# train_dataset = get_dataset_object('CBSD68')(add_noise='gau-50.')
-data = train_dataset.__getitem__(3)
+# train_dataset = get_dataset_object('SIDD_val')(pd=2)
+train_dataset = get_dataset_object('CBSD68')(add_noise='gau-25.', multiple_cliping=4)
+
+data = train_dataset.__getitem__(0)
 # if data['masked'].shape[0] == 3:
 cv2.imwrite('clean.png', cv2.cvtColor(data['clean'].permute(1,2,0).numpy(), cv2.COLOR_RGB2BGR))
 # cv2.imwrite('synthetic_noisy.png', cv2.cvtColor(data['syn_noisy'].permute(1,2,0).numpy(), cv2.COLOR_RGB2BGR))
-cv2.imwrite('real_noisy.png', cv2.cvtColor(data['real_noisy'].permute(1,2,0).numpy(), cv2.COLOR_RGB2BGR))
-t = pixel_shuffle_up_sampling(data['real_noisy'], 2)
-cv2.imwrite('real_noisy2.png', cv2.cvtColor(t.permute(1,2,0).numpy(), cv2.COLOR_RGB2BGR))
+#cv2.imwrite('real_noisy.png', cv2.cvtColor(data['real_noisy'].permute(1,2,0).numpy(), cv2.COLOR_RGB2BGR))
+#t = pixel_shuffle_up_sampling(data['real_noisy'], 2)
+#cv2.imwrite('real_noisy2.png', cv2.cvtColor(t.permute(1,2,0).numpy(), cv2.COLOR_RGB2BGR))
     #cv2.imwrite('masked.png', cv2.cvtColor(data['masked'].permute(1,2,0).numpy(), cv2.COLOR_RGB2BGR))
 # else:
     #cv2.imwrite('clean.png', data['clean'].squeeze().numpy())

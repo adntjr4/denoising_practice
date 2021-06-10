@@ -97,9 +97,6 @@ class DenoiseDataSet(Dataset):
                 else:
                     raise RuntimeError('there is no clean or real image to synthesize. (synthetic noise type: %s)'%self.add_noise_type)
 
-        # post-processing (like pixelunshuffle)
-        data = self._post_processing(data)
-
         # mask on noisy image
         if self.sampler is not None or self.replacer is not None:
             # mask on noisy image (real_noise is higher priority)
@@ -167,32 +164,24 @@ class DenoiseDataSet(Dataset):
     def _pre_processing(self, data):
         C, H, W = data['clean'].shape if 'clean' in data else data['real_noisy'].shape
 
-        # get patches from image
-        if self.crop_size != None:
-            data = self._get_patch(self.crop_size, data)
-
         # clipping edges for Unet input (make image size as multiple of parameter)
         if 'multiple_cliping' in self.kwargs:
             multiple = self.kwargs['multiple_cliping']
-            if self.crop_size != None:
-                assert self.crop_size[0]%multiple == 0 and self.crop_size[1]%multiple == 0
-            else:
-                cliped_H = H - (H % multiple)
-                cliped_W = W - (W % multiple)
-                data = self._get_patch([cliped_W, cliped_H], data, rnd=False)
-            
-        # any other pre-processing??
+            cliped_H = H - (H % multiple)
+            cliped_W = W - (W % multiple)
+            data = self._get_patch([cliped_W, cliped_H], data, rnd=False)
 
-        return data
-
-    def _post_processing(self, data):
         # pixel-shuffle down-sampling
         if 'pd' in self.kwargs:
             for key in data:
                 if self._is_image_tensor(data[key]):
                     data[key] = pixel_shuffle_down_sampling(data[key], self.kwargs['pd'])
 
-        # others?
+        # get patches from image
+        if self.crop_size != None:
+            data = self._get_patch(self.crop_size, data)
+
+        # any other pre-processing??
 
         return data
 

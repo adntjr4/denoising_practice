@@ -6,6 +6,10 @@ from .single_loss import regist_loss
 
 eps = 1e-6
 
+# =================== #
+#      Recon loss     #
+# =================== #
+
 @regist_loss
 class self_L1():
     def __call__(self, input_data, model_output, data, model):
@@ -41,7 +45,11 @@ class self_huber():
         target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
 
         return F.smooth_l1_loss(output * data['mask'], target_noisy * data['mask'], beta=1)
-        
+
+# =================== #
+#       MAP loss      #
+# =================== #
+
 @regist_loss
 class self_Gau_likelihood_scalar():
     '''
@@ -92,7 +100,7 @@ class self_Gau_likelihood():
     '''
     def __call__(self, input_data, model_output, data, model):
         target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
-        x_mean, mu_var, n_var = model_output
+        x_mean, mu_var, n_var = model_output[0], model_output[1], model_output[2]
         x_mean = x_mean.detach()
 
         # transform the shape of tensors
@@ -154,6 +162,45 @@ class self_Gau_likelihood_DBSN():
         loss = loss.mean() / 2
 
         return loss
+
+# =================== #
+#     Fusion loss     #
+# =================== #
+
+@regist_loss
+class TV():
+    def __call__(self, input_data, model_output, data, model):
+        if type(model_output) is tuple: 
+            output = model_output[4]
+        else: 
+            output = model_output
+
+        return torch.sum(torch.abs(output[:,:,:,:-1] - output[:,:,:,1:])) + \
+                torch.sum(torch.abs(output[:,:,:-1,:] - output[:,:,1:,:]))
+
+@regist_loss
+class self_L2_fusion():
+    def __call__(self, input_data, model_output, data, model):
+        if type(model_output) is tuple: 
+            output = model_output[4]
+        else: 
+            output = model_output
+
+        target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
+
+        return F.mse_loss(output * data['mask'], target_noisy * data['mask'])
+
+# =================== #
+#      Noise loss     #
+# =================== #
+
+@regist_loss
+class nlf_mean_l2():
+    def __call__(self, input_data, model_output, data, model):
+        n_var = model_output[2] # b,c,w,h
+        n_var_input  = torch.sqrt(torch.square(torch.mean((-1,-2))).mean(-1))
+        n_var_target = model.nlf_net()
+        return F.mse_loss(n_var.mean(), n_var_target)
 
 @regist_loss
 class neg_nlf_det():

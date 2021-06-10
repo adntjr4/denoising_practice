@@ -23,7 +23,7 @@ training:
   
   batch_size: 16
 
-  max_epoch: 64
+  max_epoch: 32
   
   init_lr: 3e-4
   scheduler:

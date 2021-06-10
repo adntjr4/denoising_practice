@@ -23,8 +23,8 @@ def tensor2np(t):
     else:
         raise RuntimeError('wrong tensor dimensions : %s'%(t.shape,))
 
-def imwrite_test(t):
-    cv2.imwrite('./test.png', tensor2np(t.cpu()))
+def imwrite_test(t, name='test'):
+    cv2.imwrite('./%s.png'%name, tensor2np(t.cpu()))
 
 def rot_hflip_img(img:torch.Tensor, rot_times:int=0, hflip:int=0):
     '''

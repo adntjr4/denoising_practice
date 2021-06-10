@@ -3,6 +3,7 @@ model:
   type: RBSN_nlf
   kwargs:
     real: True
+    eval_mu: True
 
 model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 

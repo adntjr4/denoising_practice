@@ -4,7 +4,7 @@ model:
   kwargs:
     real: True
     eval_mu: False
-    nlf_net: nlf_net
+    nlf_net: None
 
 model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 

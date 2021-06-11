@@ -197,13 +197,13 @@ class self_L2_fusion():
 @regist_loss
 class nlf_mean_l2():
     def __call__(self, input_data, model_output, data, model):
-        n_var = model_output[2] # b,c,w,h
+        n_var = model_output[2] # b,c,c,w,h
         
         # each variance of channel are calculated for total variance of noise.
-        n_var_input  = torch.sqrt(torch.square(torch.mean((-1,-2))).mean(-1))
+        n_var_input = torch.diagonal(n_var.mean((-1,-2)), dim1=1, dim2=2).mean(-1)
 
         # estimate noise variance as target
-        n_var_target = model.nlf_est(input_data)
+        n_var_target = torch.square(model['denoiser'].module.nlf_est(input_data[0]))
 
         return F.mse_loss(n_var_input, n_var_target)
 

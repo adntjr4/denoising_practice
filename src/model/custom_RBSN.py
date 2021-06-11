@@ -130,9 +130,9 @@ class RBSN(nn.Module):
 
         if nlf_net == None:
             self.nlf_net = CNNest(in_ch=in_ch, out_ch=in_ch)
-            self.nlf_est = nlf_net(real=real)
+            self.nlf_est = NLFNet(real=real)
         else:
-            self.nlf_net = nlf_net(real=real)
+            self.nlf_net = NLFNet(real=real)
         
         if self.nc:
             self.avg_net = LocalMeanNet(in_ch, 9)
@@ -154,8 +154,10 @@ class RBSN(nn.Module):
         mu_var = self.make_diag_covar_form(mu_var)
 
         # reshape noise level
-        n_var = n_var.view(b,-1).mean(-1)
-        n_var = n_var.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(b,c,w,h)
+        if isinstance(self.nlf_net, NLFNet):
+            n_var = n_var.view(b,-1).mean(-1)
+            n_var = n_var.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(b,c,w,h)
+
         n_var = self.make_diag_covar_form(n_var)
 
         return x_mean, mu_var, n_var
@@ -384,4 +386,4 @@ class RBSN_nlf(RBSN):
         if nlf_net is None:
             super().__init__(in_ch=3, nlf_net=None, real=real, eval_mu=eval_mu, noise_correction=noise_correction)
         else:
-            super().__init__(in_ch=3, nlf_net=NLFNet, real=real, eval_mu=eval_mu, noise_correction=noise_correction)
+            super().__init__(in_ch=3, nlf_net='NLFNet', real=real, eval_mu=eval_mu, noise_correction=noise_correction)

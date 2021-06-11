@@ -23,10 +23,15 @@ My custom repository for multiple Denoising task.
 
     
 - basic modules for deep-learning.
-    - [ ] Add test code
     - [ ] Add summary printing module
     - [ ] Save configuration file and network code
     - [ ] Add tensor board output
+    - [ ] Add code for printing something important while training
+    - [ ] Add binary data conversion
+    - [ ] Shape progress module function like tqdm
+    - [ ] Add progress bar in progress module
+    - [ ] Add cfg change with argument
+    - [x] Add test code
     - [x] Use "start_epoch" and "interval_epoch"
     - [x] Add validation image out
     - [x] Add training process for self-supervised manner

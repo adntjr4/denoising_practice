@@ -17,4 +17,5 @@ config="self-RBSN_DND"
 ###################
 
 cd ..
-python train.py --session_name $session --config $config --resume $resume --gpu $gpu_id --thread $n_thread
+# python train.py --session_name $session --config $config --resume $resume --gpu $gpu_id --thread $n_thread
+python test.py --session_name $session --config $config --ckpt_epoch 64 --gpu $gpu_id --thread $n_thread

@@ -122,7 +122,6 @@ class Trainer(BasicTrainer):
             # processing
             noisy = noisy.permute(2,0,1)
             noisy = self.test_dataloader['dataset'].dataset._pre_processing({'real_noisy': noisy})['real_noisy']
-            noisy = self.test_dataloader['dataset'].dataset._post_processing({'real_noisy': noisy})['real_noisy']
 
             noisy = noisy.view(1,noisy.shape[0], noisy.shape[1], noisy.shape[2])
 

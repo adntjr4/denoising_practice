@@ -11,8 +11,8 @@ done
 
 ##### Setting #####
 
-session="self-RBSN_nlf_nc_DND"
-config="self-RBSN_nlf_nc_DND"
+session="self-RBSN_nlf_DND"
+config="self-RBSN_nlf_DND"
 
 ###################
 

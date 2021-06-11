@@ -12,19 +12,18 @@ from . import get_model_object
 eps = 1e-6
 
 class RBSN_fusion(nn.Module):
-    def __init__(self, in_ch, nlf_net=None, fusion_net='DnCNN_B', pd=4, real=True, noise_correction=True):
+    def __init__(self, in_ch, nlf_net=None, fusion_net='DnCNN_B', real=True, noise_correction=False):
         super().__init__()
         
         self.in_ch      = in_ch
         self.nlf_net    = NLFNet(real=real) if nlf_net is not None else None
         self.est_net    = CNNest(in_ch=in_ch, out_ch=in_ch)
-        self.pd         = pd
         self.real       = real
         self.fusion_net = get_model_object(fusion_net)(in_ch=in_ch, out_ch=in_ch) if fusion_net is not None else None
         self.nc         = noise_correction
         if self.nc: self.avg_net = LocalMeanNet(in_ch, 9)
 
-        bsn_out_ch = self.in_ch if nlf_net is None else 2*self.in_ch
+        bsn_out_ch = self.in_ch
         self.bsn = DBSN(in_ch=in_ch, out_ch=bsn_out_ch)
 
     def denoise(self, x):
@@ -38,15 +37,9 @@ class RBSN_fusion(nn.Module):
                 n_var = self.nlf_net(x)
                 x = self.clipping_correction(x, n_var)
 
-            # PD
-            pd_x = pixel_shuffle_down_sampling(x, self.pd)
-
             # blind-spot network forward
-            x_mean = self.bsn(pd_x) 
-            n_var  = self.est_net(pd_x)
-
-            # network forward
-            x_mean, mu_var = x_mean[:,:self.in_ch], x_mean[:,self.in_ch:]
+            x_mean, mu_var = self.bsn(x) 
+            n_var  = self.est_net(x)
 
             # inverse PD
             x_mean = pixel_shuffle_up_sampling(x_mean, self.pd)
@@ -64,7 +57,7 @@ class RBSN_fusion(nn.Module):
             pd_x = pixel_shuffle_down_sampling(x, self.pd)
 
             # blind-spot network forward
-            x_mean = self.bsn(pd_x)
+            x_mean, _ = self.bsn(pd_x)
 
             # inverse PD
             x_mean = pixel_shuffle_up_sampling(x_mean, self.pd)
@@ -77,7 +70,7 @@ class RBSN_fusion(nn.Module):
         else:
             denoised = pd_denoised
                 
-        return x_mean, mu_var, n_var, pd_denoised, denoised
+        return x_mean, mu_var, n_var, denoised
 
     def bayes_inference(self, x, x_mean, mu_var, n_var):
         b,c,w,h = x_mean.shape
@@ -125,20 +118,22 @@ class RBSN(nn.Module):
     Main differences are I divide network for 3 output respectively. (which are x_mean, mu_var. n_var)
     I think mu_var don't need to use blind-spot network.
     '''
-    def __init__(self, in_ch=3, nlf_net=None, real=True, eval_mu=False, noise_correction=True):
+    def __init__(self, in_ch=3, nlf_net=None, real=True, eval_mu=False, noise_correction=False):
         super().__init__()
 
         self.in_ch = in_ch
         self.eval_mu = eval_mu
         self.nc = noise_correction
 
-        self.bsn = DBSN(in_ch=in_ch, out_ch=in_ch*2)
+        self.bsn        = DBSN(in_ch=in_ch, out_ch=in_ch)
+        self.mu_var_net = DBSN(in_ch=in_ch, out_ch=in_ch, num_module=3, base_ch=16)
 
         if nlf_net == None:
             self.nlf_net = CNNest(in_ch=in_ch, out_ch=in_ch)
+            self.nlf_est = nlf_net(real=real)
         else:
             self.nlf_net = nlf_net(real=real)
-
+        
         if self.nc:
             self.avg_net = LocalMeanNet(in_ch, 9)
 
@@ -153,16 +148,15 @@ class RBSN(nn.Module):
             x = self.clipping_correction(x, n_var)
 
         # forward blind-spot network
-        x_mean = self.bsn(x)
-        x_mean, mu_var = x_mean[:,:self.in_ch], x_mean[:,self.in_ch:]
+        x_mean, mu_var = self.bsn(x), self.mu_var_net(x)
 
         # forward mu-variance network
         mu_var = self.make_diag_covar_form(mu_var)
 
         # reshape noise level
+        n_var = n_var.view(b,-1).mean(-1)
         n_var = n_var.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(b,c,w,h)
         n_var = self.make_diag_covar_form(n_var)
-        n_var = n_var.mean((-1,-2)).repeat(w,h,1,1,1).permute(2,3,4,0,1)
 
         return x_mean, mu_var, n_var
 
@@ -386,5 +380,8 @@ class NLFNet(nn.Module):
             return torch.sqrt(nlf)
 
 class RBSN_nlf(RBSN):
-    def __init__(self, real=True, eval_mu=False, noise_correction=True):
-        super().__init__(in_ch=3, nlf_net=NLFNet, real=real, eval_mu=eval_mu, noise_correction=noise_correction)
+    def __init__(self, real=True, nlf_net=None, eval_mu=False, noise_correction=False):
+        if nlf_net is None:
+            super().__init__(in_ch=3, nlf_net=None, real=real, eval_mu=eval_mu, noise_correction=noise_correction)
+        else:
+            super().__init__(in_ch=3, nlf_net=NLFNet, real=real, eval_mu=eval_mu, noise_correction=noise_correction)

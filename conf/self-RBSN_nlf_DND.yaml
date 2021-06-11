@@ -3,7 +3,8 @@ model:
   type: RBSN_nlf
   kwargs:
     real: True
-    eval_mu: True
+    eval_mu: False
+    nlf_net: nlf_net
 
 model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 
@@ -13,16 +14,16 @@ training:
   dataset: prep_DND
   add_noise: None # e.g.) None bypass uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
   mask: bypass # e.g.) None bypass stf_0.7-rnd
-  crop_size: [160, 160]
-  #pixel_shuffle: 2
+  crop_size: [128, 128]
   aug: ['hflip', 'rot']
   normalization: False
   n_repeat: 4
+  multiple_cliping: 4
   pd: 4
   
   batch_size: 16
 
-  max_epoch: 64
+  max_epoch: 32
   
   init_lr: 3e-4
   scheduler:
@@ -30,7 +31,7 @@ training:
     step:
       step_size: 16
       gamma: 0.32
-  loss: 1*self_L2 + 1*self_Gau_likelihood #+ 1*n_var + 1*mu_var
+  loss: 1*self_L2 + 1*self_Gau_likelihood + 1*n_var + 1*mu_var
   optimizer:
     type: Adam
     SGD:

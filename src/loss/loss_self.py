@@ -119,9 +119,9 @@ class self_Gau_likelihood():
         # second term in paper
         loss += torch.log(torch.clamp(torch.det(mu_var + n_var), eps)) # b,w,h
         # loss += torch.log(torch.det(mu_var + n_var)) # b,w,h
-        
-        # divide with 2
-        loss = loss.mean() / 2
+
+        # divide 2
+        loss = loss.mean() /2
 
         return loss
 
@@ -198,9 +198,14 @@ class self_L2_fusion():
 class nlf_mean_l2():
     def __call__(self, input_data, model_output, data, model):
         n_var = model_output[2] # b,c,w,h
+        
+        # each variance of channel are calculated for total variance of noise.
         n_var_input  = torch.sqrt(torch.square(torch.mean((-1,-2))).mean(-1))
-        n_var_target = model.nlf_net()
-        return F.mse_loss(n_var.mean(), n_var_target)
+
+        # estimate noise variance as target
+        n_var_target = model.nlf_est(input_data)
+
+        return F.mse_loss(n_var_input, n_var_target)
 
 @regist_loss
 class neg_nlf_det():

@@ -140,7 +140,7 @@ class Trainer(BasicTrainer):
             # image save
             if self.test_cfg['save_image']:
                 cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), 255*Inoisy)
-                cv2.imwrite(os.path.join(img_save_path, '%04d_DN.png'%idx), denoised)
+                cv2.imwrite(os.path.join(img_save_path, '%04d_DN.png'%idx), denoised+0.5)
 
             return denoised / 255
 
@@ -205,9 +205,9 @@ class Trainer(BasicTrainer):
 
                 # imwrite
                 if 'clean' in data:
-                    cv2.imwrite(os.path.join(img_save_path, '%04d_CL.png'%idx), tensor2np(clean_img))
-                cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), tensor2np(noisy_img))
-                cv2.imwrite(os.path.join(img_save_path, denoi_name), tensor2np(denoi_img))
+                    cv2.imwrite(os.path.join(img_save_path, '%04d_CL.png'%idx), tensor2np(clean_img+0.5))
+                cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), tensor2np(noisy_img+0.5))
+                cv2.imwrite(os.path.join(img_save_path, denoi_name), tensor2np(denoi_img+0.5))
 
             # print temporal msg
             print('[%s] %04d/%04d evaluating...'%(status, idx, self.val_dataloader['dataset'].__len__()), end='\r')
@@ -238,12 +238,8 @@ class Trainer(BasicTrainer):
         input_data = [data[arg] for arg in self.cfg['model_input']]
         model_output = self.model['denoiser'](*input_data)
 
-        # zero grad
-        for opt in self.optimizer.values():
-            opt.zero_grad() 
-
         # get losses
-        losses = self.loss(input_data, model_output, data, self.model)
+        losses = self.loss(input_data, model_output, data, self.model, ratio=(self.epoch-1)/self.max_epoch)
 
         # backward
         total_loss = sum(v for v in losses.values())
@@ -252,6 +248,10 @@ class Trainer(BasicTrainer):
         # optimizer step
         for opt in self.optimizer.values():
             opt.step()
+
+        # zero grad
+        for opt in self.optimizer.values():
+            opt.zero_grad(set_to_none=True) 
 
         return losses
 

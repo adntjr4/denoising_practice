@@ -17,7 +17,7 @@ dataset_module = {
                     'SIDD'      : 'SIDD',
                     'SIDD_val'  : 'SIDD',
                     'prep_SIDD' : 'SIDD',
-                    'part_SIDD' : 'SIDD',
+                    'SIDD_benchmark' : 'SIDD',
 
                     # RNI15
                     'RNI15'     : 'RNI15',

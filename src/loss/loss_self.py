@@ -117,10 +117,11 @@ class self_Gau_likelihood():
         loss = loss.squeeze(-1).squeeze(-1) # b,w,h
 
         # second term in paper
-        loss += torch.log(torch.clamp(torch.det(mu_var + n_var), eps)) # b,w,h
+        loss += torch.log(torch.clamp(torch.det(mu_var + n_var + epsI), eps)) # b,w,h
         # loss += torch.log(torch.det(mu_var + n_var)) # b,w,h
 
         # divide 2
+        loss[loss>1e+5] = 0
         loss = loss.mean() /2
 
         return loss
@@ -191,8 +192,113 @@ class self_L2_fusion():
         return F.mse_loss(output * data['mask'], target_noisy * data['mask'])
 
 # =================== #
+#       Mu loss       #
+# =================== #
+
+@regist_loss
+class mu_log_det():
+    def __call__(self, input_data, model_output, data, model):
+        return torch.log(torch.clamp(torch.det(model_output[1].permute(0,3,4,1,2)), eps)).mean()
+
+@regist_loss
+class zero_singular_mean():
+    def __call__(self, input_data, model_output, data, model):
+        mu_var = model_output[1].permute(0,3,4,1,2) # b,w,h,c,c
+        b,w,h,c,c = mu_var.shape
+        _, s, _ = torch.svd(mu_var)
+
+        return s[:,:,:,0].mean()
+
+@regist_loss
+class zero_singular():
+    def __call__(self, input_data, model_output, data, model):
+        mu_var = model_output[1].permute(0,3,4,1,2) # b,w,h,c,c
+        b,w,h,c,c = mu_var.shape
+        _, s, _ = torch.svd(mu_var)
+
+        return F.mse_loss(s[:,:,:,0], torch.zeros_like(s[:,:,:,0]))
+
+@regist_loss
+class one_singular():
+    def __call__(self, input_data, model_output, data, model):
+        mu_var = model_output[1].permute(0,3,4,1,2) # b,w,h,c,c
+        # b,w,h,c,c = mu_var.shape
+        _, s, _ = torch.svd(mu_var)
+
+        return F.mse_loss(s[:,:,:,1]/s[:,:,:,0], torch.zeros_like(s[:,:,:,0]))
+
+@regist_loss
+class two_singular():
+    def __call__(self, input_data, model_output, data, model):
+        mu_var = model_output[1].permute(0,3,4,1,2) # b,w,h,c,c
+        b,w,h,c,c = mu_var.shape
+        _, s, _ = torch.svd(mu_var)
+
+        return F.mse_loss(s[:,:,:,2], torch.zeros_like(s[:,:,:,0]))
+
+# =================== #
 #      Noise loss     #
 # =================== #
+
+@regist_loss
+class nlf_tv():
+    def __call__(self, input_data, model_output, data, model):
+        n_var = torch.diagonal(model_output[2], dim1=1, dim2=2)
+
+        return 0.5 * torch.mean(torch.abs(n_var[:,:,:,:-1] - n_var[:,:,:,1:])) + \
+                0.5 * torch.mean(torch.abs(n_var[:,:,:-1,:] - n_var[:,:,1:,:]))
+
+@regist_loss
+class nlfc_l2():
+    def __call__(self, input_data, model_output, data, model):
+        n_var = model_output[2] # b,c,c,w,h
+        b,c,c,w,h = n_var.shape
+
+        n_var_input = torch.diagonal(n_var, dim1=1, dim2=2)
+
+        n_var_target = torch.square(model['denoiser'].module.nlf_est(input_data[0]))
+        n_var_target = n_var_target.view(b,1,1,1).expand(b,w,h,c)
+
+        return F.mse_loss(n_var_input, n_var_target)
+
+@regist_loss
+class nlfc_l1():
+    def __call__(self, input_data, model_output, data, model):
+        n_var = model_output[2] # b,c,c,w,h
+        b,c,c,w,h = n_var.shape
+
+        n_var_input = torch.diagonal(n_var, dim1=1, dim2=2).mean(-1)
+
+        n_var_target = torch.square(model['denoiser'].module.nlf_est(input_data[0]))
+        n_var_target = n_var_target.view(b,1,1).expand(b,w,h)
+
+        return F.l1_loss(n_var_input, n_var_target)
+
+@regist_loss
+class nlf_l2():
+    def __call__(self, input_data, model_output, data, model):
+        n_var = model_output[2] # b,c,c,w,h
+        b,c,c,w,h = n_var.shape
+
+        n_var_input = torch.diagonal(n_var, dim1=1, dim2=2).mean(-1)
+
+        n_var_target = torch.square(model['denoiser'].module.nlf_est(input_data[0]))
+        n_var_target = n_var_target.view(b,1,1).expand(b,w,h)
+
+        return F.mse_loss(n_var_input, n_var_target)
+
+@regist_loss
+class nlf_l1():
+    def __call__(self, input_data, model_output, data, model):
+        n_var = model_output[2] # b,c,c,w,h
+        b,c,c,w,h = n_var.shape
+
+        n_var_input = torch.diagonal(n_var, dim1=1, dim2=2).mean(-1)
+
+        n_var_target = torch.square(model['denoiser'].module.nlf_est(input_data[0]))
+        n_var_target = n_var_target.view(b,1,1).expand(b,w,h)
+
+        return F.l1_loss(n_var_input, n_var_target)
 
 @regist_loss
 class nlf_mean_l2():
@@ -208,14 +314,32 @@ class nlf_mean_l2():
         return F.mse_loss(n_var_input, n_var_target)
 
 @regist_loss
+class nlf_mean_l1():
+    def __call__(self, input_data, model_output, data, model):
+        n_var = model_output[2] # b,c,c,w,h
+        
+        # each variance of channel are calculated for total variance of noise.
+        n_var_input = torch.diagonal(n_var.mean((-1,-2)), dim1=1, dim2=2).mean(-1)
+
+        # estimate noise variance as target
+        n_var_target = torch.square(model['denoiser'].module.nlf_est(input_data[0]))
+
+        return F.l1_loss(n_var_input, n_var_target)
+
+@regist_loss
 class neg_nlf_det():
     def __call__(self, input_data, model_output, data, model):
         return -torch.log(torch.clamp(torch.det(model_output[2].permute(0,3,4,1,2)), eps)).mean()
 
 @regist_loss
-class neg_nlf_mean():
+class neg_nlf_log_dig():
     def __call__(self, input_data, model_output, data, model):
-        return -torch.diagonal(model_output[2], dim1=-4, dim2=-3).mean()
+        return -torch.log(torch.diagonal(model_output[2], dim1=-4, dim2=-3).mean())
+
+@regist_loss
+class neg_nlf_dig():
+    def __call__(self, input_data, model_output, data, model):
+        return -torch.sqrt(torch.diagonal(model_output[2], dim1=-4, dim2=-3)).mean()
 
 @regist_loss
 class nlf_si_syn():
@@ -239,3 +363,18 @@ class mu_var():
     def __call__(self, input_data, model_output, data, model):
         return torch.diagonal(model_output[1].detach().clone(), dim1=-4, dim2=-3).mean()
 
+@regist_loss
+class n_singular():
+    def __call__(self, input_data, model_output, data, model):
+        n_var = model_output[2].detach().clone().permute(0,3,4,1,2) # b,w,h,c,c
+        _, s, _ = torch.svd(n_var)
+
+        return s.mean()
+
+@regist_loss
+class mu_singular():
+    def __call__(self, input_data, model_output, data, model):
+        mu_var = model_output[1].detach().clone().permute(0,3,4,1,2) # b,w,h,c,c
+        _, s, _ = torch.svd(mu_var)
+
+        return s[:,:,:,0].mean()

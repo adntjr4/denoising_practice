@@ -1,5 +1,5 @@
 resume="False"
-n_thread="4"
+n_thread="8"
 while getopts g:t:r opt
 do
    case "$opt" in

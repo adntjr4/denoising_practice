@@ -143,3 +143,32 @@ class SIDD_val(DenoiseDataSet):
         noisy_img = self._load_img_from_np(noisy_img)
 
         return {'clean': clean_img, 'real_noisy': noisy_img }
+
+class SIDD_benchmark(DenoiseDataSet):
+    '''
+    SIDD benchmark dataset class
+    '''
+    def __init__(self, add_noise=None, mask=None, crop_size=None, aug=None, n_repeat=1, **kwargs):
+        super().__init__(add_noise=add_noise, mask=mask, crop_size=crop_size, aug=aug, n_repeat=n_repeat, **kwargs)
+
+    def _scan(self):
+        self.dataset_path = os.path.join(self.dataset_dir, 'SIDD')
+
+        mat_file_path = os.path.join(self.dataset_path, 'BenchmarkNoisyBlocksSrgb.mat')
+
+        self.noisy_patches = np.array(scipy.io.loadmat(mat_file_path, appendmat=False)['BenchmarkNoisyBlocksSrgb'])
+
+        # for __len__(), make img_paths have same length
+        # number of all possible patch is 1280
+        for _ in range(1280):
+            self.img_paths.append(None)
+
+    def _load_data(self, data_idx):
+        img_id   = data_idx // 32
+        patch_id = data_idx  % 32
+
+        noisy_img = self.noisy_patches[img_id, patch_id, :].astype(float)
+
+        noisy_img = self._load_img_from_np(noisy_img)
+
+        return {'real_noisy': noisy_img}

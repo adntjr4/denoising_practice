@@ -35,15 +35,15 @@ class prep_DND(DenoiseDataSet):
         super().__init__(add_noise=add_noise, mask=mask, crop_size=crop_size, aug=aug, n_repeat=n_repeat, **kwargs)
 
     def _scan(self):
-        self.dataset_path = os.path.join(self.dataset_dir, 'prep/prep-DND-cut512-ov128')
+        self.dataset_path = os.path.join(self.dataset_dir, 'prep/DND_s512_o256')
 
-        for root, _, files in os.walk(os.path.join(self.dataset_path, 'N')):
+        for root, _, files in os.walk(os.path.join(self.dataset_path, 'RN')):
             self.img_paths = files
 
     def _load_data(self, data_idx):
         file_name = self.img_paths[data_idx]
 
-        noisy_img = self._load_img(os.path.join(self.dataset_path, 'N' , file_name))
+        noisy_img = self._load_img(os.path.join(self.dataset_path, 'RN' , file_name))
 
         return {'real_noisy': noisy_img} #'instances': instance }
 

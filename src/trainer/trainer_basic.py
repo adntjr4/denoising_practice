@@ -109,6 +109,9 @@ class BasicTrainer(Output):
         self.logger.highlight(self.logger.get_start_msg())
 
     def _before_train(self):
+        # cudnn
+        torch.backends.cudnn.benchmark = True
+
         # initialing
         self.module = self._set_module()
 
@@ -308,7 +311,7 @@ class BasicTrainer(Output):
                                                             n_repeat  = dataset_cfg['n_repeat'] if 'n_repeat' in dataset_cfg else 1,
                                                             n_data    = dataset_cfg['n_data'] if 'n_data' in dataset_cfg else None,
                                                             **other_args,)
-            dataloader[key] = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+            dataloader[key] = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=True)
 
         return dataloader
 

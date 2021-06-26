@@ -1,37 +1,37 @@
 
 model: 
-  type: RBSN_nlf
+  type: RBSN_fusion
   kwargs:
+    nlf_net: True
     real: True
+    pd: 4
     eval_mu: False
-    nlf_net: None
+    noise_correction: True
 
 model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
 
 trainer: Trainer
 
 training:
-  dataset: prep_DND
+  dataset: prep_SIDD
   add_noise: None # e.g.) None bypass uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
   mask: bypass # e.g.) None bypass stf_0.7-rnd
-  crop_size: [128, 128]
+  crop_size: [96, 96]
   aug: ['hflip', 'rot']
   normalization: False
-  n_repeat: 4
-  multiple_cliping: 4
-  pd: 4
+  n_repeat: 2
   
-  batch_size: 16
+  batch_size: 32
 
-  max_epoch: 64
+  max_epoch: 32
   
   init_lr: 3e-4
   scheduler:
     type: step
     step:
-      step_size: 16
-      gamma: 0.32
-  loss: 1*self_L2 + 1*self_Gau_likelihood + 1e-2*nlf_mean_l1 + 1*n_var + 1*mu_var
+      step_size: 8
+      gamma: 0.464
+  loss: 1*self_L1 + 1*self_Gau_likelihood + 1.*n_var + 1.*mu_singular
   optimizer:
     type: Adam
     SGD:
@@ -44,14 +44,13 @@ training:
   warmup_iter: 200
 
 validation:
-  dataset: prep_DND
+  dataset: SIDD_val
   crop_size: None # [64, 64]
   add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: bypass # e.g.) None bypass stf_64-rnd
   normalization: False
   multiple_cliping: 4
   n_data: 64
-  pd: 4
 
   val: True
   save_image: True
@@ -68,12 +67,11 @@ log:
   interval_iter: 10
 
 test:
-  dataset: DND_benchmark
+  dataset: SIDD_benchmark
   crop_size: None # [64, 64]
   add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: bypass # e.g.) None bypass stf_64-rnd
   normalization: False
   multiple_cliping: 4
-  pd: 4
 
   save_image: True

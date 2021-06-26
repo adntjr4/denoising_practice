@@ -28,7 +28,7 @@ def main():
     args = args.parse_args()
     assert args.dataset is not None, 'dataset name is required'
 
-    dataset = get_dataset_object(args.dataset)()
+    dataset = get_dataset_object(args.dataset)(crop_size=(128,128))
 
     # nlf network
     nlf_net = NLFNet(real=True)
@@ -55,10 +55,10 @@ def main():
     data_len = dataset.__len__()
     data_len = 1
     for data_idx in range(data_len):
-        data = dataset.__getitem__(29)
+        data = dataset.__getitem__(13)
 
         # nlf
-        nlf = nlf_net(data['real_noisy'].unsqueeze(0)).mean((0,2,3))[1]
+        nlf = nlf_net(data['real_noisy'].unsqueeze(0))[0]
 
         #clipping correction
         mean = avg_net(data['real_noisy'].unsqueeze(0))
@@ -67,8 +67,8 @@ def main():
         data['real_noisy'][1] -= (nlf*torch.abs_(torch.randn((w,h))) - mean[0,1]) * (data['real_noisy'][1]<1.0)
         data['real_noisy'][2] -= (nlf*torch.abs_(torch.randn((w,h))) - mean[0,2]) * (data['real_noisy'][2]<1.0)
         print(nlf)
-        print(nlf_net(data['real_noisy'].unsqueeze(0)).mean((0,2,3))[1])
-
+        print(nlf_net(data['real_noisy'].unsqueeze(0))[0])
+        imwrite_test(data['real_noisy'], 'noisy')
 
         if 'syn_noisy' in data:
             noise_residual = data['syn_noisy'] - data['clean']

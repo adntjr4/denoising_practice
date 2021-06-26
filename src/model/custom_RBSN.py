@@ -12,83 +12,135 @@ from . import get_model_object
 eps = 1e-6
 
 class RBSN_fusion(nn.Module):
-    def __init__(self, in_ch, nlf_net=None, fusion_net='DnCNN_B', real=True, noise_correction=False):
+    def __init__(self, in_ch=3, nlf_net=True, real=True, pd=4, eval_mu=False, noise_correction=False):
         super().__init__()
-        
-        self.in_ch      = in_ch
-        self.nlf_net    = NLFNet(real=real) if nlf_net is not None else None
-        self.est_net    = CNNest(in_ch=in_ch, out_ch=in_ch)
-        self.real       = real
-        self.fusion_net = get_model_object(fusion_net)(in_ch=in_ch, out_ch=in_ch) if fusion_net is not None else None
-        self.nc         = noise_correction
-        if self.nc: self.avg_net = LocalMeanNet(in_ch, 9)
 
-        bsn_out_ch = self.in_ch
-        self.bsn = DBSN(in_ch=in_ch, out_ch=bsn_out_ch)
+        self.in_ch   = in_ch
+        self.pd      = pd
+        self.eval_mu = eval_mu
+        self.nc      = noise_correction
 
-    def denoise(self, x):
-        _, _, _, _, denoised = self.forward(x)
-        return denoised
+        self.bsn = DBSN(in_ch=in_ch, out_ch=in_ch)
+        self.mu_var_net = DBSN(in_ch=in_ch, out_ch=in_ch**2, num_module=3, base_ch=16)
+        # self.mu_var_net = CNNest(in_ch=in_ch, out_ch=in_ch**2)
+
+        if nlf_net:
+            self.nlf_net = CNNest(in_ch=in_ch, out_ch=in_ch)
+        else:
+            self.nlf_net = NLFNet(real=real)
+        self.nlf_est = NLFNet(real=real)
+
+        self.avg_net = LocalMeanNet(in_ch, 21)
+        # self.avg_net2 = LocalMeanNet(in_ch**2, 5)
 
     def forward(self, x):
-        if self.nlf_net is not None:
-            # noise correction
-            if self.nc:
-                n_var = self.nlf_net(x)
-                x = self.clipping_correction(x, n_var)
+        b,c,w,h = x.shape
 
-            # blind-spot network forward
-            x_mean, mu_var = self.bsn(x) 
-            n_var  = self.est_net(x)
+        # noise correction
+        est_nlf = self.nlf_est(x)
+        if self.nc:
+            x = self.clipping_correction(x, est_nlf)
 
-            # inverse PD
-            x_mean = pixel_shuffle_up_sampling(x_mean, self.pd)
-            mu_var = pixel_shuffle_up_sampling(mu_var, self.pd)
-            n_var  = pixel_shuffle_up_sampling(n_var, self.pd)
+        # PD
+        pd_x = pixel_shuffle_down_sampling(x, self.pd)
+        
+        # forward blind-spot network
+        pd_x_mean = self.bsn(pd_x)
+        # n_var = self.nlf_net(x)
+        n_var = self.avg_net(self.nlf_net(x))
+        
+        #mu_var = self.avg_net2(mu_var)
 
-            # make diagonal matrix
-            mu_var = self.make_diag_covar_form(mu_var)
-            n_var  = self.make_diag_covar_form(n_var)
+        x_mean = pixel_shuffle_up_sampling(pd_x_mean, self.pd)
+        mu_var = self.mu_var_net(x_mean.detach())
 
-            # first denoising (using bayes inference)
-            pd_denoised = self.bayes_inference(x, x_mean, mu_var, n_var)
-        else:
-            # PD
-            pd_x = pixel_shuffle_down_sampling(x, self.pd)
+        # forward mu variance network
+        # n_var = 2*est_nlf.view(b,1,1,1)*torch.sigmoid_(self.avg_net(self.nlf_net(x)))
+        # mu_var = self.avg_net2(self.mu_var_net(x))
+        # n_var = self.avg_net(self.nlf_net(x))
+        # mu_var = self.mu_var_net(x_mean.detach())
 
-            # blind-spot network forward
-            x_mean, _ = self.bsn(pd_x)
+        # reshape noise level
+        if isinstance(self.nlf_net, NLFNet):
+            n_var = n_var.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(b,c,w,h)
+        # else:
+        #     n_var = n_var.mean((-1, -2)).view(b,c,1,1).expand(b,c,w,h)
 
-            # inverse PD
-            x_mean = pixel_shuffle_up_sampling(x_mean, self.pd)
-            mu_var, n_var = None, None
-            pd_denoised = x_mean
+        mu_var = self.make_covar_form(self.make_matrix_form(mu_var))
+        mu_var = mu_var.sign() * mu_var.abs().clamp(min=eps).sqrt()
+        # mu_var = self.make_single_eigen_form(self.make_matrix_form(mu_var[:,:-1]), mu_var[:,-1])
+        # mu_var = self.make_diag_covar_form(mu_var)
+        n_var = self.make_diag_covar_form(n_var)
 
-        # fusion module
-        if self.fusion_net is not None:
-            denoised = self.fusion_net(pd_denoised.detach())
-        else:
-            denoised = pd_denoised
-                
-        return x_mean, mu_var, n_var, denoised
+        return x_mean, mu_var, n_var
+    
+    def denoise(self, x):
+        '''
+        inferencing function for denoising.
+        because forward operation isn't for denoising.
+        (see more details at section 3.3 in D-BSN paper)
+        '''
+        x_mean, mu_var, n_var = self.forward(x)
 
-    def bayes_inference(self, x, x_mean, mu_var, n_var):
+        if self.eval_mu:
+            return x_mean
+
         b,c,w,h = x_mean.shape
-        x = x.permute(0,2,3,1).unsqueeze(-1) # b,w,h,c,1
+        x_reshape = x.permute(0,2,3,1).unsqueeze(-1) # b,w,h,c,1
         x_mean = x_mean.permute(0,2,3,1).unsqueeze(-1) # b,w,h,c,1
         mu_var = mu_var.permute(0,3,4,1,2) # b,w,h,c,c
         n_var = n_var.permute(0,3,4,1,2) # b,w,h,c,c
-        epsI = eps * torch.eye(c, device=x_mean.device).repeat(b,w,h,1,1)
+        epsI = eps * torch.eye(c, device=x_mean.device).view(1,1,1,c,c).expand(b,w,h,c,c)
 
         mu_var_inv = torch.inverse(mu_var + epsI)
         n_var_inv  = torch.inverse(n_var + epsI)
 
         y_var_inv = torch.inverse(mu_var_inv + n_var_inv + epsI) # b,w,h,c,c
-        cross_sum = torch.matmul(n_var_inv, x) + torch.matmul(mu_var_inv, x_mean)
+        cross_sum = torch.matmul(n_var_inv, x_reshape) + torch.matmul(mu_var_inv, x_mean)
 
         results = torch.matmul(y_var_inv, cross_sum).squeeze(-1) # b,w,h,c
 
         return results.permute(0,3,1,2) # b,c,w,h
+
+    def make_matrix_form(self, m):
+        '''
+        m      : b,c**2,w,h
+        return : b,c,c,w,h
+        '''
+        b,cc,w,h = m.shape
+        assert cc in [1,9], 'number of channel should be square of number of input channel'
+        c = int(math.sqrt(cc))
+        return m.view(b,c,c,w,h)
+
+    def make_covar_form(self, m):
+        '''
+        multiply upper triangular part of matrix to make validate covariance matrix.
+        m      : b,c,c,w,h
+        return : b,c,c,w,h
+        '''
+        tri_m = torch.triu(m.permute(0,3,4,1,2))
+        co_mat = torch.matmul(torch.transpose(tri_m,3,4), tri_m)
+        return co_mat.permute(0,3,4,1,2)
+
+    def make_single_eigen_form(self, m, scalar):
+        '''
+        multiply upper triangular part of matrix to make validate covariance matrix.
+        m      : b,c,c,w,h
+        scalar : b,w,h
+        return : b,c,c,w,h
+        '''
+        b,c,c,w,h = m.shape
+        # epsI = eps * torch.eye(c, device=m.device).view(1,1,1,c,c).expand(b,w,h,c,c)
+        eigen = torch.zeros((b,w,h,c,c), device=m.device)
+        eigen[:,:,:,0,0] = 1.
+        eigen[:,:,:,1,1] = eps
+        eigen[:,:,:,2,2] = eps
+        eigen = scalar.view(b,w,h,1,1) * eigen
+
+        r = torch.matmul(torch.inverse(m.permute(0,3,4,1,2)), eigen)
+        r = torch.matmul(r, m.permute(0,3,4,1,2))
+
+        return r.permute(0,3,4,1,2)
 
     def make_diag_covar_form(self, m):
         '''
@@ -233,20 +285,45 @@ class RBSN(nn.Module):
             x[:,c_idx] -= (nlf.view(b,1,1)*torch.abs_(torch.randn((b,w,h), device=x.device)) - mean[:,c_idx]) * (x[:,c_idx]<1.0)
         return x
 
-class CNNest(nn.Module):
-    def __init__(self, in_ch=3, out_ch=9, num_layer=7, base_ch=64):
+class ResBlock(nn.Module):
+    def __init__(self, base_ch, bn=True):
         super().__init__()
+        layer = [nn.Conv2d(in_channels=base_ch, out_channels=base_ch, kernel_size=3, padding=1)]
+        layer.append(nn.LeakyReLU(inplace=True))
+        layer.append(nn.Conv2d(in_channels=base_ch, out_channels=base_ch, kernel_size=3, padding=1))
+        if bn: layer.append(nn.BatchNorm2d(base_ch))
+        self.body = nn.Sequential(*layer)
 
-        layer = [nn.Conv2d(in_channels=in_ch, out_channels=base_ch, kernel_size=3, padding=1)]
-        for i in range(num_layer-2):
-            layer.append(nn.ReLU(inplace=True))
-            layer.append(nn.Conv2d(in_channels=base_ch, out_channels=base_ch, kernel_size=3, padding=1))
-        layer.append(nn.ReLU(inplace=True))
-        layer.append(nn.Conv2d(in_channels=base_ch, out_channels=out_ch, kernel_size=3, padding=1))
+    def forward(self, x):
+        return x + self.body(x)
+
+class CNNest(nn.Module):
+    def __init__(self, in_ch=3, out_ch=9, num_layer=4, base_ch=16):
+        super().__init__()
+        layer = [nn.Conv2d(in_channels=in_ch, out_channels=base_ch, kernel_size=1)]
+        layer.append(nn.LeakyReLU(inplace=True))
+        for i in range(num_layer):
+            layer.append(ResBlock(base_ch, bn=False))
+        layer.append(nn.LeakyReLU(inplace=True))
+        layer.append(nn.Conv2d(in_channels=base_ch, out_channels=out_ch, kernel_size=1))
         self.body = nn.Sequential(*layer)
     
     def forward(self, x):
         return self.body(x)
+
+# class CNNest(nn.Module):
+#     def __init__(self, in_ch=3, out_ch=9, num_layer=7, base_ch=64):
+#         super().__init__()
+#         layer = [nn.Conv2d(in_channels=in_ch, out_channels=base_ch, kernel_size=3, padding=1)]
+#         layer.append(nn.ReLU(inplace=True))
+#         for i in range(num_layer-2):
+#             layer.append(nn.Conv2d(in_channels=base_ch, out_channels=base_ch, kernel_size=3, padding=1))
+#             layer.append(nn.ReLU(inplace=True))
+#         layer.append(nn.Conv2d(in_channels=base_ch, out_channels=out_ch, kernel_size=3, padding=1))
+#         self.body = nn.Sequential(*layer)
+    
+#     def forward(self, x):
+#         return self.body(x)
 
 class DBSN(nn.Module):
     def __init__(self, num_module=5, in_ch=1, out_ch=1, base_ch=64):
@@ -352,7 +429,7 @@ class NLFNet(nn.Module):
     def __init__(self, window_size=9, real=False):
         super().__init__()
 
-        self.gamma = 2.0
+        self.gamma = 0.5
         self.real = real
 
         self.lvn3 = LocalVarianceNet(3, window_size)
@@ -376,10 +453,12 @@ class NLFNet(nn.Module):
 
         if self.real:
             nlf = 9/4*(weight*(alpha_map-beta_map)).sum((-1,-2,-3)) / w_sum
-            return torch.sqrt(nlf)
+            nlf = torch.nan_to_num(nlf, nan=eps)
+            return torch.sqrt(torch.clamp(nlf, eps))
         else:
             nlf = 3/2*(weight*(alpha_map-beta_map)).sum((-1,-2,-3)) / w_sum
-            return torch.sqrt(nlf)
+            nlf = torch.nan_to_num(nlf, nan=eps)
+            return torch.sqrt(torch.clamp(nlf, eps))
 
 class RBSN_nlf(RBSN):
     def __init__(self, real=True, nlf_net=None, eval_mu=False, noise_correction=False):

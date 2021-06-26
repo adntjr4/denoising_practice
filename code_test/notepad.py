@@ -7,5 +7,8 @@ import torch.nn.functional as F
 
 import numpy as np
 
-img = cv2.imread('teagasdfstaa.png')
-print(img)
+a = torch.Tensor([float('nan')])
+print(a)
+a = torch.nan_to_num(a, nan=1e-6)
+print(a)
+print(torch.sqrt(a))

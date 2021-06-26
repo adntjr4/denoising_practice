@@ -402,7 +402,9 @@ class DenoiseDataSet(Dataset):
 
             self.pre_loaded.append(data)
 
-    ##### Image saving functions #####
+    #----------------------------#
+    #   Image saving functions   #
+    #----------------------------#
     def save_all_image(self, dir, clean=False, syn_noisy=False, real_noisy=False):
         for idx in range(len(self.img_paths)):
             data = self.__getitem__(idx)
@@ -416,8 +418,38 @@ class DenoiseDataSet(Dataset):
 
             print('image %04d saved!'%idx)
 
-    ##### etc #####
+    def prep_save(self, img_size:int, overlap:int, clean=False, syn_noisy=False, real_noisy=False):
+        d_name = '%s_s%d_o%d'%(self.__class__.__name__, img_size, overlap)
+        os.makedirs(os.path.join(self.dataset_dir, 'prep', d_name), exist_ok=True)
 
+        if clean:
+            clean_dir = os.path.join(self.dataset_dir, 'prep', d_name, 'CL')
+            os.makedirs(clean_dir, exist_ok=True)
+        if syn_noisy: 
+            syn_noisy_dir = os.path.join(self.dataset_dir, 'prep', d_name, 'SN')
+            os.makedirs(syn_noisy_dir, exist_ok=True)
+        if real_noisy:
+            real_noisy_dir = os.path.join(self.dataset_dir, 'prep', d_name, 'RN')
+            os.makedirs(real_noisy_dir, exist_ok=True)
+
+        for img_idx in range(self.__len__()):
+            data = self.__getitem__(img_idx)
+
+            c,w,h = data['clean'].shape if 'clean' in data else data['real_noisy'].shape
+            for w_idx in range((w-img_size)//overlap):
+                for h_idx in range((h-img_size)//overlap):
+                    wl, wr = w_idx*overlap, w_idx*overlap+img_size
+                    hl, hr = h_idx*overlap, h_idx*overlap+img_size
+                    if clean:      cv2.imwrite(os.path.join(clean_dir,      '%d_%d_%d.png'%(img_idx, w_idx, h_idx)), tensor2np(data['clean'][:,wl:wr,hl:hr])) 
+                    if syn_noisy:  cv2.imwrite(os.path.join(syn_noisy_dir,  '%d_%d_%d.png'%(img_idx, w_idx, h_idx)), tensor2np(data['syn_noisy'][:,wl:wr,hl:hr])) 
+                    if real_noisy: cv2.imwrite(os.path.join(real_noisy_dir, '%d_%d_%d.png'%(img_idx, w_idx, h_idx)), tensor2np(data['real_noisy'][:,wl:wr,hl:hr])) 
+
+            print('img%d'%img_idx)
+        return
+
+    #----------------------------#
+    #            etc             #
+    #----------------------------#
     def _is_image_tensor(self, x):
         '''
         return input tensor has image shape. (include batched image)

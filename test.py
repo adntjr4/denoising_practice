@@ -14,6 +14,7 @@ def main():
     args.add_argument('--ckpt_epoch',   default=None,  type=int)
     args.add_argument('--gpu',          default=None,  type=str)
     args.add_argument('--thread',       default=4,     type=int)
+    args.add_argument('--self_en',      default=False, type=bool)
 
     args = args.parse_args()
 

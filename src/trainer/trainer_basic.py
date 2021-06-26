@@ -12,7 +12,7 @@ from .output import Output
 from ..loss.loss import Loss
 from ..datahandler import get_dataset_object
 from ..util.logger import Logger
-from ..util.util import human_format
+from ..util.util import human_format, rot_hflip_img
 
 status_len = 13
 
@@ -242,6 +242,25 @@ class BasicTrainer(Output):
 
         # print progress
         self.logger.print_prog_msg((self.epoch-1, self.iter-1))
+
+    @torch.no_grad()
+    def self_ensemble(self, denoiser, x):
+        '''
+        Geomery self-ensemble function
+        Note that in this function there is no gradient calculation.
+        Args:
+            denoiser : denoiser function
+            x : input image
+        Return:
+            result : self-ensembled image
+        '''
+        result = torch.zeros_like(x)
+
+        for i in range(8):
+            tmp = denoiser(rot_hflip_img(x, rot_times=i%4, hflip=i//4))
+            rot = 4-i%4 if i//4 == 0 else i%4
+            result += rot_hflip_img(tmp, rot_times=rot, hflip=i//4)
+        return result / 8
 
     # ====================================================================== #
 

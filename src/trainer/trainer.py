@@ -50,9 +50,15 @@ class Trainer(BasicTrainer):
             # forward
             input_data = [data[arg] for arg in self.cfg['model_input']]
             if hasattr(self.model['denoiser'].module, 'denoise'):
-                denoised_image = self.model['denoiser'].module.denoise(*input_data)
+                denoiser = self.model['denoiser'].module.denoise
             else:
-                denoised_image = self.model['denoiser'](*input_data)
+                denoiser =  self.model['denoiser']
+
+            # denoising w/ or w/o self ensemble
+            if self.cfg['self_en']:
+                denoised_image = self.self_ensemble(denoiser, *input_data)
+            else:
+                denoised_image = denoiser(*input_data)
 
             # inverse normalize dataset (if normalization is on)
             if self.test_cfg['normalization']:
@@ -60,6 +66,7 @@ class Trainer(BasicTrainer):
                 data = self.test_dataloader['dataset'].dataset.inverse_normalize_data(data, self.cfg['gpu'] != 'None')
 
             # evaluation
+            denoised_image += 0.5
             if 'clean' in data:
                 psnr_value = psnr(denoised_image, data['clean'])
                 psnr_sum += psnr_value
@@ -125,22 +132,26 @@ class Trainer(BasicTrainer):
 
             noisy = noisy.view(1,noisy.shape[0], noisy.shape[1], noisy.shape[2])
 
-            # denoising
-            denoised = denoiser(noisy)
-
+            # denoising w/ or w/o self ensemble
+            if self.cfg['self_en']:
+                denoised = self.self_ensemble(denoiser, noisy)
+            else:
+                denoised = denoiser(noisy)
+            
             # inverse normalize dataset (if normalization is on)
             if self.test_cfg['normalization']:
                 denoised = self.test_dataloader['dataset'].dataset.inverse_normalize_data({'real_noisy': denoised}, self.cfg['gpu'] != 'None')['real_noisy']
             if 'pd' in self.test_cfg:
                 denoised = pixel_shuffle_up_sampling(denoised, int(self.test_cfg['pd']))
 
+            denoised += 0.5
             denoised = denoised[0,...].cpu().numpy()
             denoised = np.transpose(denoised, [1,2,0])
 
             # image save
             if self.test_cfg['save_image']:
                 cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), 255*Inoisy)
-                cv2.imwrite(os.path.join(img_save_path, '%04d_DN.png'%idx), denoised+0.5)
+                cv2.imwrite(os.path.join(img_save_path, '%04d_DN.png'%idx), denoised)
 
             return denoised / 255
 

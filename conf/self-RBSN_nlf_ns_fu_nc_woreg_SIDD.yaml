@@ -31,7 +31,8 @@ training:
     step:
       step_size: 8
       gamma: 0.464
-  loss: 1*self_L1 + 1*self_Gau_likelihood + 1.*n_var + 1.*mu_singular
+  loss: 1*self_L1 + 1*self_Gau_likelihood
+  tmp_info: n_var, mu_singular
   optimizer:
     type: Adam
     SGD:

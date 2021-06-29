@@ -1,8 +1,10 @@
 import os
 
 from src.datahandler.denoise_dataset import DenoiseDataSet
+from . import regist_dataset
 
 
+@regist_dataset
 class RNI15(DenoiseDataSet):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

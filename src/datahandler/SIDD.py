@@ -4,8 +4,10 @@ import scipy.io
 import numpy as np
 
 from src.datahandler.denoise_dataset import DenoiseDataSet
+from . import regist_dataset
 
 
+@regist_dataset
 class SIDD(DenoiseDataSet):
     '''
     SIDD datatset class using original images.
@@ -55,6 +57,7 @@ class SIDD(DenoiseDataSet):
         parsed['illuminant_brightness_code'] = splited[6]
         return parsed
 
+@regist_dataset
 class prep_SIDD(DenoiseDataSet):
     '''
     SIDD dataset class for using prepared SIDD data from GeunWung.
@@ -83,6 +86,7 @@ class prep_SIDD(DenoiseDataSet):
             instance = yaml.load(f, Loader=yaml.FullLoader)
         return instance
 
+@regist_dataset
 class part_SIDD(DenoiseDataSet):
     '''
     part of SIDD dataset class for using prepared SIDD data from GeunWung.
@@ -111,6 +115,7 @@ class part_SIDD(DenoiseDataSet):
             instance = yaml.load(f, Loader=yaml.FullLoader)
         return instance
 
+@regist_dataset
 class SIDD_val(DenoiseDataSet):
     '''
     SIDD validation dataset class 
@@ -144,6 +149,7 @@ class SIDD_val(DenoiseDataSet):
 
         return {'clean': clean_img, 'real_noisy': noisy_img }
 
+@regist_dataset
 class SIDD_benchmark(DenoiseDataSet):
     '''
     SIDD benchmark dataset class

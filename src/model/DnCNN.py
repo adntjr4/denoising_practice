@@ -1,12 +1,14 @@
 import torch
 import torch.nn as nn
 
+from . import regist_model, get_model_object
+
 '''
 modified version of original code
 Ref : https://github.com/cszn/KAIR
 '''
 
-
+@regist_model
 class DnCNN(nn.Module):
     def __init__(self, in_ch=1, out_ch=1, base_ch=64, n_layer=17):
         super().__init__()
@@ -55,12 +57,14 @@ class Block(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+@regist_model
 class DnCNN_B(DnCNN):
     def __init__(self, in_ch=1, out_ch=1):
         super().__init__(in_ch=in_ch, out_ch=out_ch, n_layer=20)
 
 # ========
 
+@regist_model
 class NarrowDnCNN(nn.Module):
     def __init__(self, in_ch=1, out_ch=1, base_ch=128, n_layer=44):
         super().__init__()

@@ -3,9 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributions as torch_distb
 
+from . import regist_model, get_model_object
 
 eps = 1e-6
 
+@regist_model
 class ISPGAN_Generator(nn.Module):
     def __init__(self, in_ch, out_ch, base_ch=64, r_rand=32, n_pipe1=3, n_pipe2=3, n_pipe3=3):
         super().__init__()

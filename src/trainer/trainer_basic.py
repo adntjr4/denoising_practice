@@ -128,8 +128,9 @@ class BasicTrainer(Output):
         max_len = max([self.train_dataloader[key].dataset.__len__() for key in self.train_dataloader])
         self.max_iter = math.ceil(max_len / self.train_cfg['batch_size'])
 
-        self.loss = Loss(self.train_cfg['loss'])
+        self.loss = Loss(self.train_cfg['loss'], self.train_cfg['tmp_info'])
         self.loss_dict = {'count':0}
+        self.tmp_info = {}
         self.loss_log = []
 
         # set optimizer
@@ -224,15 +225,20 @@ class BasicTrainer(Output):
                     data[dataset_key][key] = data[dataset_key][key].cuda()
 
         # step (forward, cal losses, backward)
-        losses = self._step(data) # forward, losses, backward
+        losses, tmp_info = self._step(data) # forward, losses, backward
 
-        # save losses
+        # save losses and tmp_info
         for key in losses:
             if key != 'count':
                 if key in self.loss_dict:
                     self.loss_dict[key] += float(losses[key])
                 else:
                     self.loss_dict[key] = float(losses[key])
+        for key in tmp_info:
+            if key in self.tmp_info:
+                self.tmp_info[key] += float(tmp_info[key])
+            else:
+                self.tmp_info[key] = float(tmp_info[key])
         self.loss_dict['count'] += 1
 
     def _after_step(self):
@@ -265,20 +271,31 @@ class BasicTrainer(Output):
     # ====================================================================== #
 
     def print_loss(self):
-        temperal_loss = 0.
+        temporal_loss = 0.
         for key in self.loss_dict:
             if key != 'count':
-                    temperal_loss += self.loss_dict[key]/self.loss_dict['count']
-        self.loss_log += [temperal_loss]
+                    temporal_loss += self.loss_dict[key]/self.loss_dict['count']
+        self.loss_log += [temporal_loss]
 
-        loss_out_str = '[%s] %04d/%04d, lr:%s | '%(self.status, self.iter, self.max_iter, "{:.2e}".format(self._get_current_lr()))
+        # print status and learning rate
+        loss_out_str = '[%s] %04d/%04d, lr:%s ∣ '%(self.status, self.iter, self.max_iter, "{:.1e}".format(self._get_current_lr()))
 
-        loss_out_str += 'avg_loss : %.4f | '%(np.mean(self.loss_log))
+        # print losses
+        loss_out_str += 'avg_loss : %.3f ∣ '%(np.mean(self.loss_log))
 
         for key in self.loss_dict:
             if key != 'count':
-                loss_out_str += '%s : %.4f | '%(key, self.loss_dict[key]/self.loss_dict['count'])
+                loss_out_str += '%s : %.3f ∣ '%(key, self.loss_dict[key]/self.loss_dict['count'])
                 self.loss_dict[key] = 0.
+
+        # print temporal information
+        loss_out_str += '\t['
+        for key in self.tmp_info:
+            loss_out_str += '  %s : %.2f'%(key, self.tmp_info[key]/self.loss_dict['count'])
+            self.tmp_info[key] = 0.
+        loss_out_str += ' ]'
+
+        # reset
         self.loss_dict['count'] = 0
         self.logger.info(loss_out_str)
 

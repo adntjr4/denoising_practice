@@ -3,8 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributions as torch_distb
 
+from . import regist_model, get_model_object
+
 eps = 1e-6
 
+@regist_model
 class CLtoN_D(nn.Module):
     def __init__(self, n_ch_in=3, n_ch=64, n_block=6):
         super().__init__()
@@ -30,6 +33,7 @@ class CLtoN_D(nn.Module):
         
         return x
 
+@regist_model
 class CLtoN_D_one_out(nn.Module):
     def __init__(self, n_ch_in=3, n_ch=64, n_block=6):
         super().__init__()
@@ -60,10 +64,12 @@ class CLtoN_D_one_out(nn.Module):
         
         return x
 
+@regist_model
 class LtoN_D_one_out(CLtoN_D_one_out):
     def __init__(self):
         super().__init__(n_ch_in=1)
 
+@regist_model
 class CLtoN_G(nn.Module):
     def __init__(self, n_ch_in=3, n_ch_out=3, n_ch=64, n_rand=32, n_ext_block=5, n_indep_block=3, n_dep_block=2,
                     pipe_indep=False, pipe_dep=True, pipe_conv1=True, pipe_conv3=False):
@@ -164,6 +170,7 @@ class CLtoN_G(nn.Module):
 
         return noise
 
+@regist_model
 class CLtoN_G_modified(nn.Module):
     def __init__(self, n_ch_in=3, n_ch_out=3, n_ch=64, n_rand=32, n_indep_block=3, n_dep_block=2,
                     pipe_indep=False, pipe_dep=True):
@@ -240,43 +247,52 @@ class CLtoN_G_modified(nn.Module):
 
         return noise
 
-
+@regist_model
 class LtoN_D(CLtoN_D):
     def __init__(self):
         super().__init__(n_ch_in=1)
 
+@regist_model
 class LtoN_G(CLtoN_G):
     def __init__(self):
         super().__init__(n_ch_in=1, n_ch_out=1)
 
+@regist_model
 class CLtoN_G_indep_1(CLtoN_G):
     def __init__(self):
         super().__init__(pipe_dep=False, pipe_conv3=False)
 
+@regist_model
 class CLtoN_G_indep_3(CLtoN_G):
     def __init__(self):
         super().__init__(pipe_dep=False, pipe_conv1=False)
 
+@regist_model
 class CLtoN_G_indep_13(CLtoN_G):
     def __init__(self):
         super().__init__(pipe_dep=False)
 
+@regist_model
 class CLtoN_G_dep_1(CLtoN_G):
     def __init__(self):
         super().__init__(pipe_indep=False, pipe_conv3=False)
 
+@regist_model
 class CLtoN_G_dep_3(CLtoN_G):
     def __init__(self):
         super().__init__(pipe_indep=False, pipe_conv1=False)
 
+@regist_model
 class CLtoN_G_dep_13(CLtoN_G):
     def __init__(self):
         super().__init__(pipe_indep=False)
 
+@regist_model
 class CLtoN_G_indep_dep_1(CLtoN_G):
     def __init__(self):
         super().__init__(pipe_conv3=False)
 
+@regist_model
 class CLtoN_G_indep_dep_3(CLtoN_G):
     def __init__(self):
         super().__init__(pipe_conv1=False)

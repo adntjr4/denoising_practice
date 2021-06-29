@@ -5,7 +5,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from . import regist_model, get_model_object
 
+@regist_model
 class DBSN_Likelihood(nn.Module):
     def __init__(self, in_ch=1, nlf_scalar=False, est_net=None):
         super().__init__()
@@ -89,6 +91,7 @@ class DBSN_Likelihood(nn.Module):
         co_mat = torch.matmul(torch.transpose(tri_m,3,4), tri_m)
         return co_mat.permute(0,3,4,1,2)
 
+@regist_model
 class DBSN(nn.Module):
     def __init__(self, num_module=5, in_ch=1, out_ch=1, base_ch=64):
         super().__init__()
@@ -199,6 +202,7 @@ class CentralMaskedConv2d(nn.Conv2d):
         self.weight.data *= self.mask
         return super().forward(x)
 
+@regist_model
 class DBSN_Likelihood3(DBSN_Likelihood):
     def __init__(self, in_ch=3, nlf_scalar=False):
         super().__init__(in_ch=in_ch, nlf_scalar=nlf_scalar, est_net=CNNest3)

@@ -250,7 +250,7 @@ class Trainer(BasicTrainer):
         model_output = self.model['denoiser'](*input_data)
 
         # get losses
-        losses = self.loss(input_data, model_output, data, self.model, ratio=(self.epoch-1)/self.max_epoch)
+        losses, tmp_info = self.loss(input_data, model_output, data, self.model, ratio=(self.epoch-1)/self.max_epoch)
 
         # backward
         total_loss = sum(v for v in losses.values())
@@ -264,7 +264,7 @@ class Trainer(BasicTrainer):
         for opt in self.optimizer.values():
             opt.zero_grad(set_to_none=True) 
 
-        return losses
+        return losses, tmp_info
 
 class Trainer_GAN(BasicTrainer):
     def __init__(self, cfg):

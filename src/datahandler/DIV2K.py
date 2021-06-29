@@ -1,8 +1,10 @@
 import os
 
 from src.datahandler.denoise_dataset import DenoiseDataSet
+from . import regist_dataset
 
 
+@regist_dataset
 class DIV2K_train(DenoiseDataSet):
     def __init__(self, add_noise=None, mask=None, crop_size=None, aug=None, n_repeat=1, **kwargs):
         super().__init__(add_noise=add_noise, mask=mask, crop_size=crop_size, aug=aug, n_repeat=n_repeat, **kwargs)
@@ -18,6 +20,7 @@ class DIV2K_train(DenoiseDataSet):
         clean_img = self._load_img(self.img_paths[data_idx])
         return {'clean': clean_img}
 
+@regist_dataset
 class DIV2K_val(DenoiseDataSet):
     def __init__(self, add_noise=None, mask=None, crop_size=None, aug=None, n_repeat=1, **kwargs):
         super().__init__(add_noise=add_noise, mask=mask, crop_size=crop_size, aug=aug, n_repeat=n_repeat, **kwargs)

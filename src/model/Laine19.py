@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from src.util.util import rot_hflip_img
-
+from . import regist_model, get_model_object
 
 class shifted_conv(nn.Conv2d):
     def __init__(self, in_ch, out_ch, k_size):
@@ -76,6 +76,7 @@ class bsn_unet(nn.Module):
 
         return x
 
+@regist_model
 class Laine19(nn.Module):
     def __init__(self, in_ch=3, out_ch=3, n_depth=5, base_ch=48):
         self.n_depth = n_depth
@@ -116,6 +117,7 @@ class Laine19(nn.Module):
 
         return x
 
+@regist_model
 class Laine19_Likelihood(nn.Module):
     '''
     Module for using bayesian inference step from Laine et al.

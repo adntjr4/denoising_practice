@@ -1,14 +1,10 @@
-import os, sys, argparse, cv2
-sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+import time
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+import tqdm
 
-import numpy as np
 
-a = torch.Tensor([float('nan')])
-print(a)
-a = torch.nan_to_num(a, nan=1e-6)
-print(a)
-print(torch.sqrt(a))
+pbar = tqdm.tqdm(total=1000, ncols=100)
+
+for i in range(1000):
+    time.sleep(0.1)
+    pbar.update()

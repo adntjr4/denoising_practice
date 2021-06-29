@@ -26,12 +26,11 @@ My custom repository for multiple Denoising task.
     - [ ] Add summary printing module
     - [ ] Save configuration file and network code
     - [ ] Add tensor board output
-    - [ ] Add code for printing something important while training
     - [ ] Add binary data conversion
-    - [ ] Shape progress module function like tqdm
-    - [ ] Add progress bar in progress module
     - [ ] Add cfg change with argument
-    - [ ] add 0.5 at saving image time and also in clipping time
+    - [ ] Add multiple dataset training
+    - [x] add 0.5 at saving image time and also in clipping time
+    - [x] Add code for printing something important while training
     - [x] Add test code
     - [x] Use "start_epoch" and "interval_epoch"
     - [x] Add validation image out

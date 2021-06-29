@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .single_loss import regist_loss
+from . import regist_loss
 
 eps = 1e-6
 
@@ -353,20 +353,24 @@ class nlf_si_syn():
 
         return F.mse_loss(torch.diagonal(model_output[2], dim1=-4, dim2=-3).mean((1,2,3)), target_vars)
 
+# =================== #
+#     Display loss    #
+# =================== #
+
 @regist_loss
 class n_var():
     def __call__(self, input_data, model_output, data, model):
-        return torch.diagonal(model_output[2].detach().clone(), dim1=-4, dim2=-3).mean()
+        return torch.diagonal(model_output[2], dim1=-4, dim2=-3).mean()
 
 @regist_loss
 class mu_var():
     def __call__(self, input_data, model_output, data, model):
-        return torch.diagonal(model_output[1].detach().clone(), dim1=-4, dim2=-3).mean()
+        return torch.diagonal(model_output[1], dim1=-4, dim2=-3).mean()
 
 @regist_loss
 class n_singular():
     def __call__(self, input_data, model_output, data, model):
-        n_var = model_output[2].detach().clone().permute(0,3,4,1,2) # b,w,h,c,c
+        n_var = model_output[2].permute(0,3,4,1,2) # b,w,h,c,c
         _, s, _ = torch.svd(n_var)
 
         return s.mean()
@@ -374,7 +378,7 @@ class n_singular():
 @regist_loss
 class mu_singular():
     def __call__(self, input_data, model_output, data, model):
-        mu_var = model_output[1].detach().clone().permute(0,3,4,1,2) # b,w,h,c,c
+        mu_var = model_output[1].permute(0,3,4,1,2) # b,w,h,c,c
         _, s, _ = torch.svd(mu_var)
 
         return s[:,:,:,0].mean()

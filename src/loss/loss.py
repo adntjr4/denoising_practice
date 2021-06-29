@@ -5,17 +5,16 @@ import torch
 import torch.nn as nn
 import torch.autograd as autograd
 
-from . import loss_L
-from . import loss_GAN
-from . import loss_self
-from .single_loss import loss_types
+from . import loss_class_dict
 
 
 class Loss(nn.Module):
-    def __init__(self, loss_string):
+    def __init__(self, loss_string, tmp_info_string):
         super().__init__()
-        loss_string = loss_string.replace(' ', '')
+        loss_string     = loss_string.replace(' ', '')
+        tmp_info_string = tmp_info_string.replace(' ', '')
 
+        # parse loss string
         self.loss_list = []
         for single_loss in loss_string.split('+'):
             weight, name = single_loss.split('*')
@@ -23,14 +22,26 @@ class Loss(nn.Module):
             weight = float(weight.replace('r', ''))
             name = name.lower()
 
-            if name in loss_types:
+            if name in loss_class_dict:
                 self.loss_list.append({ 'name': name,
                                         'weight': float(weight),
-                                        'func': loss_types[name](),
+                                        'func': loss_class_dict[name](),
                                         'ratio': ratio})
             else:
                 raise RuntimeError('undefined loss term: {}'.format(name))
             
+        # parse temporal information string
+        self.tmp_info_list = []
+        for name in tmp_info_string.split(','):
+            name = name.lower()
+
+            if name in loss_class_dict:
+                self.tmp_info_list.append({ 'name': name,
+                                            'func': loss_class_dict[name]()})
+            else:
+                raise RuntimeError('undefined loss term: {}'.format(name))
+
+
     def forward(self, input_data, model_output, data, model, loss_name=None, change_name=None, ratio=1.0):
         '''
         forward all loss and return as dict format.
@@ -40,37 +51,35 @@ class Loss(nn.Module):
             data         : entire batch of data
             model        : model (for another network forward)
             loss_name    : (optional) choose specific loss with name
-            ratio        : percentage of learning procedure for increase weight during training
+            change_name  : (optional) replace name of chosen loss
+            ratio        : (optional) percentage of learning procedure for increase weight during training
         Return
             losses       : dictionary of loss
         '''
         loss_arg = (input_data, model_output, data, model)
 
+        # calculate only specific loss 'loss_name' and change its name to 'change_name'
+        if loss_name is not None:
+            for single_loss in self.loss_list:
+                if loss_name.lower() == single_loss['name']:
+                    loss = single_loss['weight'] * single_loss['func'](*loss_arg)
+                    if single_loss['ratio']: loss *= ratio
+                    if change_name is not None:
+                        return {change_name: loss}
+                    return {single_loss['name']: loss}
+            raise RuntimeError('there is no such loss in training losses: {}'.format(loss_name))
+
+        # normal case: calculate all training losses at one time
         losses = {}
         for single_loss in self.loss_list:
-            name = single_loss['name']
-            
-            # this makes calculate only specific loss.
-            if loss_name is not None:
-                if loss_name.lower() != name:
-                    continue
-                else:
-                    if change_name is not None:
-                        losses[change_name] = single_loss['weight'] * single_loss['func'](*loss_arg)
-                        if single_loss['ratio']: losses[change_name] *= ratio 
-                        return losses
+            losses[single_loss['name']] = single_loss['weight'] * single_loss['func'](*loss_arg)
+            if single_loss['ratio']: losses[single_loss['name']] *= ratio 
 
-            losses[name] = single_loss['weight'] * single_loss['func'](*loss_arg)
-            if single_loss['ratio']: losses[name] *= ratio 
+        # calculate temporal information
+        tmp_info = {}
+        for single_tmp_info in self.tmp_info_list:
+            # don't need gradient
+            with torch.no_grad():
+                tmp_info[single_tmp_info['name']] = single_tmp_info['func'](*loss_arg)
 
-        return losses
-
-    # def get_loss_dict_form(self):
-    #     '''
-    #     return dict{name: 0} for log or whatever
-    #     '''
-    #     loss_dict = {}
-    #     loss_dict['count'] = 0
-    #     for single_loss in self.loss_list:
-    #         loss_dict[single_loss['name']] = 0.
-    #     return loss_dict
+        return losses, tmp_info

@@ -3,8 +3,10 @@ import os
 import h5py
 
 from src.datahandler.denoise_dataset import DenoiseDataSet
+from . import regist_dataset
 
 
+@regist_dataset
 class DND(DenoiseDataSet):
     def __init__(self, add_noise=None, mask=None, crop_size=None, aug=None, n_repeat=1, **kwargs):
         super().__init__(add_noise=add_noise, mask=mask, crop_size=crop_size, aug=aug, n_repeat=n_repeat, **kwargs)
@@ -27,6 +29,7 @@ class DND(DenoiseDataSet):
         parsed = {}
         return parsed
 
+@regist_dataset
 class prep_DND(DenoiseDataSet):
     '''
     dataset class for prepared DND dataset which is cropped with overlap.
@@ -47,6 +50,7 @@ class prep_DND(DenoiseDataSet):
 
         return {'real_noisy': noisy_img} #'instances': instance }
 
+@regist_dataset
 class DND_benchmark(DenoiseDataSet):
     '''
     dumpy dataset class for DND benchmark

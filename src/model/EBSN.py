@@ -3,7 +3,9 @@ import torch.nn as nn
 
 from .DnCNN import DnCNN, Block
 
+from . import regist_model, get_model_object
 
+@regist_model
 class EBSN(nn.Module):
     def __init__(self, in_ch=1, out_ch=1, base_ch=64, n_layer=20):
         super().__init__()

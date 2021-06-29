@@ -1,50 +1,23 @@
 
+import os
 from importlib import import_module
 
-model_module_dict = {
-                # DnCNN
-                'DnCNN_B':  'DnCNN',
+model_class_dict = {}
 
-                # N2V
-                'N2V_UNet': 'UNet',
+def regist_model(model_class):
+    model_name = model_class.__name__.lower()
+    assert not model_name in model_class_dict, 'there is already registered model: %s in model_class_dict.' % model_name
+    model_class_dict[model_name] = model_class
 
-                # Laine19
-                'Laine19': 'Laine19',
-                'Laine19_Likelihood': 'Laine19',
+    return model_class
 
-                # D-BSN
-                'DBSN': 'DBSN',
-                'DBSN_Likelihood': 'DBSN',
-                'DBSN_Likelihood3': 'DBSN',
+def get_model_object(model_name:str):
+    model_name = model_name.lower()
+    return model_class_dict[model_name]
 
-                # Effective Blind-Spot Network
-                'EBSN' : 'EBSN',
-
-                # CLtoN
-                'CLtoN_G': 'CLtoN',
-                'CLtoN_G_modified': 'CLtoN',
-                'CLtoN_D': 'CLtoN',
-                'LtoN_G': 'CLtoN',
-                'LtoN_D': 'CLtoN',
-                'CLtoN_G_indep_1': 'CLtoN',
-                'CLtoN_G_indep_3': 'CLtoN',
-                'CLtoN_G_indep_13': 'CLtoN',
-                'CLtoN_G_dep_1': 'CLtoN',
-                'CLtoN_G_dep_3': 'CLtoN',
-                'CLtoN_G_dep_13': 'CLtoN',
-                'CLtoN_G_indep_dep_1': 'CLtoN',
-                'CLtoN_G_indep_dep_3': 'CLtoN',
-
-                'CLtoN_D_one_out': 'CLtoN',
-                'LtoN_D_one_out': 'CLtoN',
-
-                # custom
-                'ISPGAN_Generator': 'custom_ISPGAN',
-                'RBSN': 'custom_RBSN',
-                'RBSN_nlf': 'custom_RBSN',
-                'RBSN_fusion': 'custom_RBSN',
-                }
-
-def get_model_object(model_name):
-    model_module = import_module('src.model.{}'.format(model_module_dict[model_name]))
-    return getattr(model_module, model_name)
+# import all python files in model folder
+for module in os.listdir(os.path.dirname(__file__)):
+    if module == '__init__.py' or module[-3:] != '.py':
+        continue
+    import_module('src.model.{}'.format(module[:-3]))
+del module

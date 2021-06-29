@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .single_loss import regist_loss
+from . import regist_loss
 
 @regist_loss
 class L1():

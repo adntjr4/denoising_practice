@@ -1,83 +1,30 @@
 
+import os
 from importlib import import_module
 
-dataset_module = {
-                    # BSD
-                    'BSD68'     : 'BSD',
-                    'BSD432'    : 'BSD',
-                    'CBSD68'    : 'BSD',
-                    'CBSD432'   : 'BSD',
+dataset_class_dict = {}
 
-                    # DND
-                    'DND'       : 'DND',
-                    'prep_DND'  : 'DND',
-                    'DND_benchmark'  : 'DND',
+def regist_dataset(dataset_class):
+    dataset_name = dataset_class.__name__.lower()
+    assert not dataset_name in dataset_class_dict, 'there is already registered dataset: %s in dataset_class_dict.' % dataset_name
+    dataset_class_dict[dataset_name] = dataset_class
 
-                    # SIDD
-                    'SIDD'      : 'SIDD',
-                    'SIDD_val'  : 'SIDD',
-                    'prep_SIDD' : 'SIDD',
-                    'SIDD_benchmark' : 'SIDD',
-
-                    # RNI15
-                    'RNI15'     : 'RNI15',
-
-                    # DIV2K
-                    'DIV2K_train' : 'DIV2K',
-                    'DIV2K_val'   : 'DIV2K',
-
-                    # prep & part
-                    'prep_SIDD' : 'SIDD',
-                    'part_SIDD' : 'SIDD',
-
-                    # pre-generated synthetic noisy image
-                    'Synthesized_BSD68_15'   : 'BSD',
-                    'Synthesized_BSD68_25'   : 'BSD',
-                    'Synthesized_BSD68_50'   : 'BSD',
-                    'Synthesized_BSD432_15'  : 'BSD',
-                    'Synthesized_BSD432_25'  : 'BSD',
-                    'Synthesized_BSD432_50'  : 'BSD',
-                    'Synthesized_CBSD68_15'  : 'BSD',
-                    'Synthesized_CBSD68_25'  : 'BSD',
-                    'Synthesized_CBSD68_50'  : 'BSD',
-                    'Synthesized_CBSD432_15' : 'BSD',
-                    'Synthesized_CBSD432_25' : 'BSD',
-                    'Synthesized_CBSD432_50' : 'BSD',
-
-                    'Synthesized_BSD432_25_struc'  : 'BSD',
-
-                    'PD1_CBSD68_15' : 'BSD',
-                    'PD1_CBSD68_25' : 'BSD',
-                    'PD1_CBSD68_50' : 'BSD',
-                    'PD2_CBSD68_15' : 'BSD',
-                    'PD2_CBSD68_25' : 'BSD',
-                    'PD2_CBSD68_50' : 'BSD',
-                    'PD3_CBSD68_15' : 'BSD',
-                    'PD3_CBSD68_25' : 'BSD',
-                    'PD3_CBSD68_50' : 'BSD',
-                    'PD4_CBSD68_15' : 'BSD',
-                    'PD4_CBSD68_25' : 'BSD',
-                    'PD4_CBSD68_50' : 'BSD',
-                    'PD1_CBSD432_15' : 'BSD',
-                    'PD1_CBSD432_25' : 'BSD',
-                    'PD1_CBSD432_50' : 'BSD',
-                    'PD2_CBSD432_15' : 'BSD',
-                    'PD2_CBSD432_25' : 'BSD',
-                    'PD2_CBSD432_50' : 'BSD',
-                    'PD3_CBSD432_15' : 'BSD',
-                    'PD3_CBSD432_25' : 'BSD',
-                    'PD3_CBSD432_50' : 'BSD',
-                    'PD4_CBSD432_15' : 'BSD',
-                    'PD4_CBSD432_25' : 'BSD',
-                    'PD4_CBSD432_50' : 'BSD',
-
-                }
+    return dataset_class
 
 def get_dataset_object(dataset_name):
-    if dataset_name is None:
-        return None
-    elif len(dataset_name.split('+')) > 1:
+    dataset_name = dataset_name.lower()
+    
+    # Case of using multiple dataset
+    if len(dataset_name.split('+')) > 1:
         raise NotImplementedError
+
+    # Single dataset
     else:
-        module_dset = import_module('src.datahandler.{}'.format(dataset_module[dataset_name]))
-        return getattr(module_dset, dataset_name)
+        return dataset_class_dict[dataset_name]
+
+# import all python files in model folder
+for module in os.listdir(os.path.dirname(__file__)):
+    if module == '__init__.py' or module[-3:] != '.py':
+        continue
+    import_module('src.datahandler.{}'.format(module[:-3]))
+del module

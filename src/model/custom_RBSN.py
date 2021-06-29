@@ -6,11 +6,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..util.util import pixel_shuffle_down_sampling, pixel_shuffle_up_sampling
-from . import get_model_object
-
+from . import regist_model, get_model_object
 
 eps = 1e-6
 
+@regist_model
 class RBSN_fusion(nn.Module):
     def __init__(self, in_ch=3, nlf_net=True, real=True, pd=4, eval_mu=False, noise_correction=False):
         super().__init__()
@@ -165,6 +165,7 @@ class RBSN_fusion(nn.Module):
             x[:,c_idx] -= (nlf.view(b,1,1)*torch.abs_(torch.randn((b,w,h), device=x.device)) - mean[:,c_idx]) * (x[:,c_idx]<1.0)
         return x
 
+@regist_model
 class RBSN(nn.Module):
     '''
     Main differences are I divide network for 3 output respectively. (which are x_mean, mu_var. n_var)
@@ -460,6 +461,7 @@ class NLFNet(nn.Module):
             nlf = torch.nan_to_num(nlf, nan=eps)
             return torch.sqrt(torch.clamp(nlf, eps))
 
+@regist_model
 class RBSN_nlf(RBSN):
     def __init__(self, real=True, nlf_net=None, eval_mu=False, noise_correction=False):
         if nlf_net is None:

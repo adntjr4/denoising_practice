@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from . import regist_model, get_model_object
+
 '''
 UNet baseline model for reproducing noise2void.
 base block structures are coded by refering "CSBDeep" 
@@ -81,6 +83,7 @@ class UNet_Block(nn.Module):
 
         return x
 
+@regist_model
 class N2V_UNet(nn.Module):
     def __init__(self, n_depth=2, in_ch=1, base_ch=16, n_conv_per_depth=16, n_pooling=2, bn=True):
         super().__init__()

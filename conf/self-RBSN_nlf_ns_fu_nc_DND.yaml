@@ -5,7 +5,7 @@ model:
     nlf_net: True
     real: True
     pd: 4
-    eval_mu: False
+    eval_mu: True
     noise_correction: True
 
 model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean

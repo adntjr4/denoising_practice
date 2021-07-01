@@ -51,7 +51,7 @@ class self_huber():
 # =================== #
 
 @regist_loss
-class self_Gau_likelihood_scalar():
+class MAP_scalar():
     '''
     MAP loss for gaussian likelihood from Laine et al.
     model output should be as following shape.
@@ -90,7 +90,7 @@ class self_Gau_likelihood_scalar():
         return loss.mean()
 
 @regist_loss
-class self_Gau_likelihood():
+class MAP():
     '''
     MAP loss for gaussian likelihood from Laine et al.
     model output should be as following shape.
@@ -127,7 +127,7 @@ class self_Gau_likelihood():
         return loss
 
 @regist_loss
-class self_Gau_likelihood_DBSN():
+class MAP_DBSN():
     '''
     MAP loss for gaussian likelihood in DBSN paper
     model output should be as following shape.
@@ -201,7 +201,7 @@ class mu_log_det():
         return torch.log(torch.clamp(torch.det(model_output[1].permute(0,3,4,1,2)), eps)).mean()
 
 @regist_loss
-class zero_singular_mean():
+class top_singular_mean():
     def __call__(self, input_data, model_output, data, model):
         mu_var = model_output[1].permute(0,3,4,1,2) # b,w,h,c,c
         b,w,h,c,c = mu_var.shape

@@ -368,21 +368,41 @@ class DenoiseDataSet(Dataset):
         return mask_map, self.replacer(noisy_img, mask_map)
 
     def _augmentation(self, data:dict, aug:list):
-        # random choice for rotation and flipping
-        data_aug = {'rot':0, 'hflip':0}
-        for one_aug in aug:
-            if one_aug == 'rot':
-                data_aug['rot'] = random.randint(0,3)
-            elif one_aug == 'hflip':
-                data_aug['hflip'] = random.randint(0,1)
+        '''
+        Parsing augmentation list and apply it to the data images.
+        '''
+        # parsign augmentation
+        rot, hflip = 0, 0
+        for aug_name in aug:
+            # aug : random rotation
+            if aug_name == 'rot':
+                rot = random.randint(0,3)
+            # aug : random flip
+            elif aug_name == 'hflip':
+                hflip = random.randint(0,1)
+            # random RGB channel shuffle
+            elif aug_name == 'RGB_shuf':
+                color_ch = [0,1,2]
+                random.shuffle(color_ch)
+            # random RB channdel shuffle
+            elif aug_name == 'RB_shuf':
+                color_ch = [random.choice([0,2])]
+                color_ch.append(1)
+                color_ch.append(2-color_ch[0])
+            else:
+                raise RuntimeError('undefined augmentation option : %s'%aug_name)
         
-        # for every data(only image), apply data augmentation.
+        # for every data(only image), apply rotation and flipping augmentation.
         for key in data:
-            # is image (if data length of dimension is 3.)
-            if isinstance(data[key], torch.Tensor):
-                if len(data[key].shape) == 3:
-                    data[key] = rot_hflip_img(data[key], data_aug['rot'], data_aug['hflip'])
+            if self._is_image_tensor(data[key]):
+                # random rotation and flip
+                if rot != 0 or hflip != 0:
+                    data[key] = rot_hflip_img(data[key], rot, hflip)
 
+                # random color channel shuffle
+                if 'color_ch' in locals():
+                    data[key] = data[key][color_ch]
+            
         return data
 
     def _need_to_be_mem(self):

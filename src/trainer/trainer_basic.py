@@ -89,7 +89,8 @@ class BasicTrainer(Output):
         self.module = self._set_module()
 
         # load checkpoint file
-        self.load_checkpoint(self.cfg['ckpt_epoch'])
+        ckpt_epoch = self._find_last_epoch() if self.cfg['ckpt_epoch'] == -1 else self.cfg['ckpt_epoch']
+        self.load_checkpoint(ckpt_epoch)
         self.epoch = self.cfg['ckpt_epoch'] # for print or saving file name.
 
         # test dataset loader

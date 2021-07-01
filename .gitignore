@@ -17,6 +17,13 @@ output/*
 
 # ignore tmp folder
 tmp/*
+etc/*
 
 # ignore test codes
 code_test/*
+
+# ignore training script file
+train.sh
+
+# ignore temporal png files
+*.png

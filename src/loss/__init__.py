@@ -5,7 +5,7 @@ from importlib import import_module
 loss_class_dict = {}
 
 def regist_loss(loss_class):
-    loss_name = loss_class.__name__.lower()
+    loss_name = loss_class.__name__
     assert not loss_name in loss_class_dict, 'there is already registered loss name: %s in loss_class_dict.' % loss_name
     loss_class_dict[loss_name] = loss_class
 

@@ -20,7 +20,6 @@ class Loss(nn.Module):
             weight, name = single_loss.split('*')
             ratio = True if 'r' in weight else False
             weight = float(weight.replace('r', ''))
-            name = name.lower()
 
             if name in loss_class_dict:
                 self.loss_list.append({ 'name': name,
@@ -33,8 +32,6 @@ class Loss(nn.Module):
         # parse temporal information string
         self.tmp_info_list = []
         for name in tmp_info_string.split(','):
-            name = name.lower()
-
             if name in loss_class_dict:
                 self.tmp_info_list.append({ 'name': name,
                                             'func': loss_class_dict[name]()})
@@ -61,7 +58,7 @@ class Loss(nn.Module):
         # calculate only specific loss 'loss_name' and change its name to 'change_name'
         if loss_name is not None:
             for single_loss in self.loss_list:
-                if loss_name.lower() == single_loss['name']:
+                if loss_name == single_loss['name']:
                     loss = single_loss['weight'] * single_loss['func'](*loss_arg)
                     if single_loss['ratio']: loss *= ratio
                     if change_name is not None:

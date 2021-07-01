@@ -23,7 +23,7 @@ etc/*
 code_test/*
 
 # ignore training script file
-train.sh
+train*.sh
 
 # ignore temporal png files
 *.png

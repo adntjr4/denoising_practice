@@ -3,6 +3,7 @@ model:
   type: RBSN
   kwargs:
     pd: 4
+    pd_pad: 2
     eval_mu: False
     noise_correction: True
 

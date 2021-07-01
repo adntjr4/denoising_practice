@@ -73,13 +73,13 @@ def pixel_shuffle_down_sampling(x:torch.Tensor, f:int, pad:int=0):
     if len(x.shape) == 3:
         c,h,w = x.shape
         unshuffled = F.pixel_unshuffle(x, f)
-        unshuffled = F.pad(unshuffled, (pad, pad, pad, pad))
+        if pad != 0: unshuffled = F.pad(unshuffled, (pad, pad, pad, pad))
         return unshuffled.view(c,f,f,h//f+2*pad,w//f+2*pad).permute(0,1,3,2,4).reshape(c, h+2*f*pad, w+2*f*pad)
     # batched image tensor
     else:
         b,c,h,w = x.shape
         unshuffled = F.pixel_unshuffle(x, f)
-        unshuffled = F.pad(unshuffled, (pad, pad, pad, pad))
+        if pad != 0: unshuffled = F.pad(unshuffled, (pad, pad, pad, pad))
         return unshuffled.view(b,c,f,f,h//f+2*pad,w//f+2*pad).permute(0,1,2,4,3,5).reshape(b,c,h+2*f*pad, w+2*f*pad)
 
 def pixel_shuffle_up_sampling(x:torch.Tensor, f:int, pad:int=0):
@@ -95,13 +95,13 @@ def pixel_shuffle_up_sampling(x:torch.Tensor, f:int, pad:int=0):
     if len(x.shape) == 3:
         c,h,w = x.shape
         before_shuffle = x.view(c,f,h//f,f,w//f).permute(0,1,3,2,4).reshape(c*f*f,h//f,w//f)
-        before_shuffle = before_shuffle[..., pad:-pad, pad:-pad]
+        if pad != 0: before_shuffle = before_shuffle[..., pad:-pad, pad:-pad]
         return F.pixel_shuffle(before_shuffle, f)   
     # batched image tensor
     else:
         b,c,h,w = x.shape
         before_shuffle = x.view(b,c,f,h//f,f,w//f).permute(0,1,2,4,3,5).reshape(b,c*f*f,h//f,w//f)
-        before_shuffle = before_shuffle[..., pad:-pad, pad:-pad]
+        if pad != 0: before_shuffle = before_shuffle[..., pad:-pad, pad:-pad]
         return F.pixel_shuffle(before_shuffle, f)
 
 def human_format(num):

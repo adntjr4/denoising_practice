@@ -442,6 +442,9 @@ class DenoiseDataSet(Dataset):
         d_name = '%s_s%d_o%d'%(self.__class__.__name__, img_size, overlap)
         os.makedirs(os.path.join(self.dataset_dir, 'prep', d_name), exist_ok=True)
 
+        assert overlap < img_size
+        overlap = img_size - overlap
+
         if clean:
             clean_dir = os.path.join(self.dataset_dir, 'prep', d_name, 'CL')
             os.makedirs(clean_dir, exist_ok=True)

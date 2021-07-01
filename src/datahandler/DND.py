@@ -33,12 +33,13 @@ class DND(DenoiseDataSet):
 class prep_DND(DenoiseDataSet):
     '''
     dataset class for prepared DND dataset which is cropped with overlap.
+    [using size 512x512 with 128 overlapping]
     '''
     def __init__(self, add_noise=None, mask=None, crop_size=None, aug=None, n_repeat=1, **kwargs):
         super().__init__(add_noise=add_noise, mask=mask, crop_size=crop_size, aug=aug, n_repeat=n_repeat, **kwargs)
 
     def _scan(self):
-        self.dataset_path = os.path.join(self.dataset_dir, 'prep/DND_s512_o256')
+        self.dataset_path = os.path.join(self.dataset_dir, 'prep/DND_s512_o128')
 
         for root, _, files in os.walk(os.path.join(self.dataset_path, 'RN')):
             self.img_paths = files

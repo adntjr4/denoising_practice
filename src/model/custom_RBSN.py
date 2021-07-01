@@ -14,7 +14,7 @@ eps = 1e-6
 
 @regist_model
 class RBSN(nn.Module):
-    def __init__(self, pd=4, eval_mu=False, noise_correction=False):
+    def __init__(self, pd=4, pd_pad=0, eval_mu=False, noise_correction=False):
         super().__init__()
 
         self.in_ch   = 3
@@ -23,7 +23,7 @@ class RBSN(nn.Module):
 
 
         self.pd      = pd
-        self.pd_pad  = 2
+        self.pd_pad  = pd_pad
         self.eval_mu = eval_mu
         self.nc      = noise_correction
 

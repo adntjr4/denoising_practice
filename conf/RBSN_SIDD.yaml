@@ -19,7 +19,7 @@ training:
   normalization: False
   n_repeat: 1
   
-  batch_size: 2
+  batch_size: 4
 
   max_epoch: 32
   

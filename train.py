@@ -4,7 +4,7 @@ from importlib import import_module
 import torch
 
 from src.util.config_parse import ConfigParser
-import src.trainer.trainer as Trainer
+from src.trainer import trainer_dict
 
 
 def main():
@@ -29,7 +29,7 @@ def main():
         os.environ['CUDA_VISIBLE_DEVICES'] = cfg['gpu']
 
     # intialize trainer
-    trainer = getattr(Trainer, cfg['trainer'])(cfg)
+    trainer = trainer_dict[cfg['trainer']](cfg)
 
     # train
     trainer.train()

@@ -29,7 +29,7 @@ class RBSN(nn.Module):
 
         self.bsn = DBSN(in_ch=self.in_ch, out_ch=self.in_ch)
         self.mu_var_net = DBSN(in_ch=self.in_ch, out_ch=self.in_ch**2, num_module=3, base_ch=16)
-        # self.mu_var_net = CNNest(in_ch=in_ch, out_ch=in_ch**2)
+        # self.mu_var_net = CNNest(in_ch=self.in_ch, out_ch=self.in_ch**2)
 
         self.nlf_net = CNNest(in_ch=self.in_ch, out_ch=self.in_ch)
         self.nlf_est = NLFNet(real=True)

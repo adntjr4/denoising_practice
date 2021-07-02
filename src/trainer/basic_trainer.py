@@ -1,5 +1,4 @@
 import os, math
-from importlib import import_module
 
 import cv2
 import numpy as np
@@ -8,14 +7,14 @@ from torch import nn
 from torch import optim
 from torch.utils.data import DataLoader
 
-from .output import Output
 from ..loss.loss import Loss
 from ..datahandler import get_dataset_object
+from ..util.output import Output
 from ..util.logger import Logger
 from ..util.util import human_format, rot_hflip_img
 
-status_len = 13
 
+status_len = 13
 
 class BasicTrainer(Output):
     def test(self):
@@ -28,8 +27,9 @@ class BasicTrainer(Output):
     def _set_optimizer(self):
         # return dict form with each coresponding model name.
         raise NotImplementedError('define this function for each trainer')
-    def _step(self, data):
-        # forward, backward, step, return loss values for print.
+    def _forward_fn(self, module, loss, data):
+        # forward with model, loss function and data.
+        # return output of loss function.
         raise NotImplementedError('define this function for each trainer')
 
     # =================================================================== #
@@ -99,16 +99,35 @@ class BasicTrainer(Output):
         # logger
         self.logger = Logger()
 
-        # cuda
+        # wrapping and device setting
+        self.loss = None
+        self._wrapping_model_loss()
         if self.cfg['gpu'] != 'None':
             # model to GPU
-            self.model = {key: nn.DataParallel(self.module[key]).cuda() for key in self.module}
+            self.model = nn.DataParallel(self.model_loss).cuda()
         else:
-            self.model = {key: nn.DataParallel(self.module[key]) for key in self.module}
+            self.model = nn.DataParallel(self.model_loss)
 
         # start message
         self.logger.highlight(self.logger.get_start_msg())
 
+    def _wrapping_model_loss(self):
+        '''
+        wrapping model and loss together as single nn.Module
+        (if only model is used with DataParallel, there is an overhead on calculating loss.)
+        '''
+        class WrappedModelLoss(nn.Module):
+            def __init__(self, module, loss, forward_fn):
+                super().__init__()
+                self.module     = nn.ModuleDict(module)
+                self.loss       = loss
+                self.forward_fn = forward_fn
+            def forward(self, data):
+                # return output of loss
+                return self.forward_fn(self.module, self.loss, data)
+        
+        self.model_loss = WrappedModelLoss(self.module, self.loss, self._forward_fn)
+            
     def _before_train(self):
         # cudnn
         torch.backends.cudnn.benchmark = True
@@ -136,6 +155,8 @@ class BasicTrainer(Output):
 
         # set optimizer
         self.optimizer = self._set_optimizer()
+        for opt in self.optimizer.values():
+            opt.zero_grad(set_to_none=True)
 
         # resume
         if self.cfg["resume"]:
@@ -152,20 +173,19 @@ class BasicTrainer(Output):
             # logger initialization
             self.logger = Logger((self.max_epoch, self.max_iter), log_dir=self.get_dir(''), log_file_option='w')
 
-        # cuda
+        # wrapping and device setting
+        self._wrapping_model_loss()
         if self.cfg['gpu'] != 'None':
             # model to GPU
-            self.model = {key: nn.DataParallel(self.module[key]).cuda() for key in self.module}
+            self.model = nn.DataParallel(self.model_loss).cuda()
             # optimizer to GPU
             for optim in self.optimizer.values():
                 for state in optim.state.values():
                     for k, v in state.items():
                         if isinstance(v, torch.Tensor):
                             state[k] = v.cuda()
-            # loss module to GPU
-            self.loss = self.loss.cuda()
         else:
-            self.model = {key: nn.DataParallel(self.module[key]) for key in self.module}
+            self.model = nn.DataParallel(self.model_loss)
 
         # start message
         self.logger.info(self.summary())
@@ -185,10 +205,8 @@ class BasicTrainer(Output):
             self.train_dataloader_iter[key] = iter(self.train_dataloader[key])
 
         # model training mode
-        for m in self.model.values():
-            m.train() 
+        self.model.train()
 
-        
     def _run_epoch(self):
         for self.iter in range(1, self.max_iter+1):
             self._before_step()
@@ -225,8 +243,24 @@ class BasicTrainer(Output):
                 for key in data[dataset_key]:
                     data[dataset_key][key] = data[dataset_key][key].cuda()
 
-        # step (forward, cal losses, backward)
-        losses, tmp_info = self._step(data) # forward, losses, backward
+        # forward, cal losses, backward)
+        losses, tmp_info = self.model(data)
+        losses   = {key: losses[key].mean()   for key in losses}
+        tmp_info = {key: tmp_info[key].mean() for key in tmp_info}
+
+        #print(losses)
+
+        # backward
+        total_loss = sum(v for v in losses.values()).mean()
+        total_loss.backward()
+
+        # optimizer step
+        for opt in self.optimizer.values():
+            opt.step()
+
+        # zero grad
+        for opt in self.optimizer.values():
+            opt.zero_grad(set_to_none=True) 
 
         # save losses and tmp_info
         for key in losses:
@@ -303,7 +337,7 @@ class BasicTrainer(Output):
     def save_checkpoint(self):
         checkpoint_name = self._checkpoint_name(self.epoch)
         torch.save({'epoch': self.epoch,
-                    'model_weight': {key:self.model[key].module.state_dict() for key in self.model},
+                    'model_weight': {key:self.model.module.module[key].state_dict() for key in self.model.module.module},
                     'optimizer_weight': {key:self.optimizer[key].state_dict() for key in self.optimizer}},
                     os.path.join(self.get_dir(self.checkpoint_folder), checkpoint_name))
 
@@ -348,7 +382,7 @@ class BasicTrainer(Output):
                                                             n_repeat  = dataset_cfg['n_repeat'] if 'n_repeat' in dataset_cfg else 1,
                                                             n_data    = dataset_cfg['n_data'] if 'n_data' in dataset_cfg else None,
                                                             **other_args,)
-            dataloader[key] = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=True)
+            dataloader[key] = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=False)
 
         return dataloader
 

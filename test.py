@@ -29,7 +29,7 @@ def main():
         os.environ['CUDA_VISIBLE_DEVICES'] = cfg['gpu']
 
     # intialize trainer
-    trainer = Trainer(cfg)
+    trainer = trainer_dict[cfg['trainer']](cfg)
 
     # test
     trainer.test()

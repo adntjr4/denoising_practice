@@ -12,7 +12,7 @@ eps = 1e-6
 
 @regist_loss
 class self_L1():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         if type(model_output) is tuple: 
             output = model_output[0]
         else: 
@@ -24,7 +24,7 @@ class self_L1():
 
 @regist_loss
 class self_L2():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         if type(model_output) is tuple: 
             output = model_output[0]
         else: 
@@ -36,7 +36,7 @@ class self_L2():
 
 @regist_loss
 class self_huber():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         if type(model_output) is tuple: 
             output = model_output[0]
         else: 
@@ -59,7 +59,7 @@ class MAP_scalar():
         x_var (Tensor[b,c,c,w,h]) : covariance matrix of prediction.
         n_sigma (Tensor[b])   : estimation of noise level.
     '''
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
         x_mean, x_var, n_sigma = model_output
 
@@ -98,7 +98,7 @@ class MAP():
         mu_var (Tensor[b,c,c,w,h]) : covariance matrix of prediction.
         n_var (Tensor[b,c,c,w,h])  : estimation of noise level.
     '''
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
         x_mean, mu_var, n_var = model_output[0], model_output[1], model_output[2]
         x_mean = x_mean.detach()
@@ -117,8 +117,8 @@ class MAP():
         loss = loss.squeeze(-1).squeeze(-1) # b,w,h
 
         # second term in paper
-        loss += torch.log(torch.clamp(torch.det(mu_var + n_var + epsI), eps)) # b,w,h
-        # loss += torch.log(torch.det(mu_var + n_var)) # b,w,h
+        # loss += torch.log(torch.clamp(torch.det(mu_var + n_var + epsI), eps)) # b,w,h
+        loss += torch.log(torch.det(mu_var + n_var)) # b,w,h
 
         # divide 2
         loss[loss>1e+5] = 0
@@ -135,7 +135,7 @@ class MAP_DBSN():
         mu_var (Tensor[b,c,c,w,h]) : covariance matrix of difference between prediction and original signal.
         n_var (Tensor[b,c,c,w,h]) : covariance matrix of noise.
     '''
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
         x_mean, mu_var, n_var = model_output
         x_mean = x_mean.detach()
@@ -170,7 +170,7 @@ class MAP_DBSN():
 
 @regist_loss
 class TV():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         if type(model_output) is tuple: 
             output = model_output[4]
         else: 
@@ -181,7 +181,7 @@ class TV():
 
 @regist_loss
 class self_L2_fusion():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         if type(model_output) is tuple: 
             output = model_output[4]
         else: 
@@ -197,12 +197,12 @@ class self_L2_fusion():
 
 @regist_loss
 class mu_log_det():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         return torch.log(torch.clamp(torch.det(model_output[1].permute(0,3,4,1,2)), eps)).mean()
 
 @regist_loss
 class top_singular_mean():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         mu_var = model_output[1].permute(0,3,4,1,2) # b,w,h,c,c
         b,w,h,c,c = mu_var.shape
         _, s, _ = torch.svd(mu_var)
@@ -211,7 +211,7 @@ class top_singular_mean():
 
 @regist_loss
 class zero_singular():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         mu_var = model_output[1].permute(0,3,4,1,2) # b,w,h,c,c
         b,w,h,c,c = mu_var.shape
         _, s, _ = torch.svd(mu_var)
@@ -220,7 +220,7 @@ class zero_singular():
 
 @regist_loss
 class one_singular():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         mu_var = model_output[1].permute(0,3,4,1,2) # b,w,h,c,c
         # b,w,h,c,c = mu_var.shape
         _, s, _ = torch.svd(mu_var)
@@ -229,7 +229,7 @@ class one_singular():
 
 @regist_loss
 class two_singular():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         mu_var = model_output[1].permute(0,3,4,1,2) # b,w,h,c,c
         b,w,h,c,c = mu_var.shape
         _, s, _ = torch.svd(mu_var)
@@ -242,7 +242,7 @@ class two_singular():
 
 @regist_loss
 class nlf_tv():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         n_var = torch.diagonal(model_output[2], dim1=1, dim2=2)
 
         return 0.5 * torch.mean(torch.abs(n_var[:,:,:,:-1] - n_var[:,:,:,1:])) + \
@@ -250,100 +250,100 @@ class nlf_tv():
 
 @regist_loss
 class nlfc_l2():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         n_var = model_output[2] # b,c,c,w,h
         b,c,c,w,h = n_var.shape
 
         n_var_input = torch.diagonal(n_var, dim1=1, dim2=2)
 
-        n_var_target = torch.square(model['denoiser'].module.nlf_est(input_data[0]))
+        n_var_target = torch.square(module['denoiser'].nlf_est(input_data[0]))
         n_var_target = n_var_target.view(b,1,1,1).expand(b,w,h,c)
 
         return F.mse_loss(n_var_input, n_var_target)
 
 @regist_loss
 class nlfc_l1():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         n_var = model_output[2] # b,c,c,w,h
         b,c,c,w,h = n_var.shape
 
         n_var_input = torch.diagonal(n_var, dim1=1, dim2=2).mean(-1)
 
-        n_var_target = torch.square(model['denoiser'].module.nlf_est(input_data[0]))
+        n_var_target = torch.square(module['denoiser'].nlf_est(input_data[0]))
         n_var_target = n_var_target.view(b,1,1).expand(b,w,h)
 
         return F.l1_loss(n_var_input, n_var_target)
 
 @regist_loss
 class nlf_l2():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         n_var = model_output[2] # b,c,c,w,h
         b,c,c,w,h = n_var.shape
 
         n_var_input = torch.diagonal(n_var, dim1=1, dim2=2).mean(-1)
 
-        n_var_target = torch.square(model['denoiser'].module.nlf_est(input_data[0]))
+        n_var_target = torch.square(module['denoiser'].nlf_est(input_data[0]))
         n_var_target = n_var_target.view(b,1,1).expand(b,w,h)
 
         return F.mse_loss(n_var_input, n_var_target)
 
 @regist_loss
 class nlf_l1():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         n_var = model_output[2] # b,c,c,w,h
         b,c,c,w,h = n_var.shape
 
         n_var_input = torch.diagonal(n_var, dim1=1, dim2=2).mean(-1)
 
-        n_var_target = torch.square(model['denoiser'].module.nlf_est(input_data[0]))
+        n_var_target = torch.square(module['denoiser'].nlf_est(input_data[0]))
         n_var_target = n_var_target.view(b,1,1).expand(b,w,h)
 
         return F.l1_loss(n_var_input, n_var_target)
 
 @regist_loss
 class nlf_mean_l2():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         n_var = model_output[2] # b,c,c,w,h
         
         # each variance of channel are calculated for total variance of noise.
         n_var_input = torch.diagonal(n_var.mean((-1,-2)), dim1=1, dim2=2).mean(-1)
 
         # estimate noise variance as target
-        n_var_target = torch.square(model['denoiser'].module.nlf_est(input_data[0]))
+        n_var_target = torch.square(module['denoiser'].nlf_est(input_data[0]))
 
         return F.mse_loss(n_var_input, n_var_target)
 
 @regist_loss
 class nlf_mean_l1():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         n_var = model_output[2] # b,c,c,w,h
         
         # each variance of channel are calculated for total variance of noise.
         n_var_input = torch.diagonal(n_var.mean((-1,-2)), dim1=1, dim2=2).mean(-1)
 
         # estimate noise variance as target
-        n_var_target = torch.square(model['denoiser'].module.nlf_est(input_data[0]))
+        n_var_target = torch.square(module['denoiser'].nlf_est(input_data[0]))
 
         return F.l1_loss(n_var_input, n_var_target)
 
 @regist_loss
 class neg_nlf_det():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         return -torch.log(torch.clamp(torch.det(model_output[2].permute(0,3,4,1,2)), eps)).mean()
 
 @regist_loss
 class neg_nlf_log_dig():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         return -torch.log(torch.diagonal(model_output[2], dim1=-4, dim2=-3).mean())
 
 @regist_loss
 class neg_nlf_dig():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         return -torch.sqrt(torch.diagonal(model_output[2], dim1=-4, dim2=-3)).mean()
 
 @regist_loss
 class nlf_si_syn():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
 
         alphas = torch.var(target_noisy, dim=(2,3)).sum(1)/3
@@ -359,17 +359,17 @@ class nlf_si_syn():
 
 @regist_loss
 class n_var():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         return torch.diagonal(model_output[2], dim1=-4, dim2=-3).mean()
 
 @regist_loss
 class mu_var():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         return torch.diagonal(model_output[1], dim1=-4, dim2=-3).mean()
 
 @regist_loss
 class n_singular():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         n_var = model_output[2].permute(0,3,4,1,2) # b,w,h,c,c
         _, s, _ = torch.svd(n_var)
 
@@ -377,7 +377,7 @@ class n_singular():
 
 @regist_loss
 class mu_singular():
-    def __call__(self, input_data, model_output, data, model):
+    def __call__(self, input_data, model_output, data, module):
         mu_var = model_output[1].permute(0,3,4,1,2) # b,w,h,c,c
         _, s, _ = torch.svd(mu_var)
 

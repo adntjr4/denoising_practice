@@ -39,21 +39,21 @@ class Loss(nn.Module):
                 raise RuntimeError('undefined loss term: {}'.format(name))
 
 
-    def forward(self, input_data, model_output, data, model, loss_name=None, change_name=None, ratio=1.0):
+    def forward(self, input_data, model_output, data, module, loss_name=None, change_name=None, ratio=1.0):
         '''
         forward all loss and return as dict format.
         Args
             input_data   : input of the network (also in the data)
             model_output : output of the network
             data         : entire batch of data
-            model        : model (for another network forward)
+            module       : dictionary of modules (for another network forward)
             loss_name    : (optional) choose specific loss with name
             change_name  : (optional) replace name of chosen loss
             ratio        : (optional) percentage of learning procedure for increase weight during training
         Return
             losses       : dictionary of loss
         '''
-        loss_arg = (input_data, model_output, data, model)
+        loss_arg = (input_data, model_output, data, module)
 
         # calculate only specific loss 'loss_name' and change its name to 'change_name'
         if loss_name is not None:

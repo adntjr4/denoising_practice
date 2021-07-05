@@ -20,7 +20,7 @@ class self_L1():
 
         target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
 
-        return F.l1_loss(output * data['mask'], target_noisy * data['mask'])
+        return F.l1_loss(output, target_noisy)
 
 @regist_loss
 class self_L2():
@@ -32,7 +32,7 @@ class self_L2():
 
         target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
 
-        return F.mse_loss(output * data['mask'], target_noisy * data['mask'])
+        return F.mse_loss(output, target_noisy)
 
 @regist_loss
 class self_huber():
@@ -44,7 +44,7 @@ class self_huber():
 
         target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
 
-        return F.smooth_l1_loss(output * data['mask'], target_noisy * data['mask'], beta=1)
+        return F.smooth_l1_loss(output, target_noisy, beta=1)
 
 # =================== #
 #       MAP loss      #
@@ -117,8 +117,8 @@ class MAP():
         loss = loss.squeeze(-1).squeeze(-1) # b,w,h
 
         # second term in paper
-        # loss += torch.log(torch.clamp(torch.det(mu_var + n_var + epsI), eps)) # b,w,h
-        loss += torch.log(torch.det(mu_var + n_var)) # b,w,h
+        loss += torch.log(torch.clamp(torch.det(mu_var + n_var), eps)) # b,w,h
+        # loss += torch.log(torch.det(mu_var + n_var)) # b,w,h
 
         # divide 2
         loss[loss>1e+5] = 0
@@ -199,6 +199,11 @@ class self_L2_fusion():
 class mu_log_det():
     def __call__(self, input_data, model_output, data, module):
         return torch.log(torch.clamp(torch.det(model_output[1].permute(0,3,4,1,2)), eps)).mean()
+
+@regist_loss
+class mu_det():
+    def __call__(self, input_data, model_output, data, module):
+        return torch.det(model_output[1].permute(0,3,4,1,2)).mean()
 
 @regist_loss
 class top_singular_mean():

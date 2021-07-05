@@ -27,7 +27,8 @@ class Trainer(BasicTrainer):
         self._before_test()
 
         # evaluation mode
-        self.model.eval()
+        for key in self.model:
+            self.model[key].eval()
 
         # dnd benchmark evaluation is seperated.
         if self.cfg['test']['dataset'] == 'DND_benchmark':
@@ -36,8 +37,8 @@ class Trainer(BasicTrainer):
 
         # make directories for image saving
         if self.test_cfg['save_image']:
-            img_save_path = self.get_dir('img/test_%03d'%self.epoch)
-            os.makedirs(img_save_path, exist_ok=True)
+            img_save_path = 'img/test_%03d' % self.epoch
+            self.file_manager.make_dir(img_save_path)
 
         # validation
         psnr_sum = 0.
@@ -50,10 +51,10 @@ class Trainer(BasicTrainer):
 
             # forward
             input_data = [data[arg] for arg in self.cfg['model_input']]
-            if hasattr(self.model.module.module['denoiser'], 'denoise'):
-                denoiser = self.model.module.module['denoiser'].denoise
+            if hasattr(self.model['denoiser'].module, 'denoise'):
+                denoiser = self.model['denoiser'].module.denoise
             else:
-                denoiser =  self.model.module.module['denoiser']
+                denoiser =  self.model['denoiser'].module
 
             # denoising w/ or w/o self ensemble
             if self.cfg['self_en']:
@@ -87,9 +88,9 @@ class Trainer(BasicTrainer):
 
                 # imwrite
                 if 'clean' in data:
-                    cv2.imwrite(os.path.join(img_save_path, '%04d_CL.png'%idx), tensor2np(clean_img))
-                cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), tensor2np(noisy_img))
-                cv2.imwrite(os.path.join(img_save_path, denoi_name), tensor2np(denoi_img))
+                    self.file_manager.save_img_tensor(img_save_path, '%04d_CL.png'%idx, clean_img)
+                self.file_manager.save_img_tensor(img_save_path, '%04d_N.png'%idx, noisy_img)
+                self.file_manager.save_img_tensor(img_save_path, denoi_name, denoi_img)
 
             # logger msg
             status = (' test %03d '%self.epoch).ljust(status_len)
@@ -109,14 +110,14 @@ class Trainer(BasicTrainer):
     def test_DND(self):
         # make directories for image saving
         if self.test_cfg['save_image']:
-            img_save_path = self.get_dir('img/DND_%03d'%self.epoch)
-            os.makedirs(img_save_path, exist_ok=True)
+            img_save_path = 'img/DND_%03d' % self.epoch
+            self.file_manager.make_dir(img_save_path)
 
         # denoiser wrapping
-        if hasattr(self.model.module.module['denoiser'], 'denoise'):
-            denoiser = self.model.module.module['denoiser'].denoise
+        if hasattr(self.model['denoiser'].module, 'denoise'):
+            denoiser = self.model['denoiser'].module.denoise
         else:
-            denoiser = self.model.module.module['denoiser']
+            denoiser = self.model['denoiser'].module
 
         def wrap_denoiser(Inoisy, nlf, idx):
             noisy = 255 * torch.from_numpy(Inoisy)
@@ -151,8 +152,8 @@ class Trainer(BasicTrainer):
 
             # image save
             if self.test_cfg['save_image']:
-                cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), 255*Inoisy)
-                cv2.imwrite(os.path.join(img_save_path, '%04d_DN.png'%idx), denoised)
+                self.file_manager.save_img_numpy(img_save_path, '%04d_N.png'%idx,  255*Inoisy)
+                self.file_manager.save_img_numpy(img_save_path, '%04d_DN.png'%idx, denoised)
 
             return denoised / 255
 
@@ -167,13 +168,14 @@ class Trainer(BasicTrainer):
     @torch.no_grad()
     def validation(self):
         # evaluation mode
-        self.model.eval()
+        for key in self.model:
+            self.model[key].eval()
         status = ('  val %03d '%self.epoch).ljust(status_len) #.center(status_len)
 
         # make directories for image saving
         if self.val_cfg['save_image']:
-            img_save_path = self.get_dir('img/val_%03d'%self.epoch)
-            os.makedirs(img_save_path, exist_ok=True)
+            img_save_path = 'img/val_%03d' % self.epoch
+            self.file_manager.make_dir(img_save_path)
 
         # validation
         psnr_sum = 0.
@@ -186,16 +188,18 @@ class Trainer(BasicTrainer):
 
             # forward
             input_data = [data[arg] for arg in self.cfg['model_input']]
-            if hasattr(self.model.module.module['denoiser'], 'denoise'):
-                denoised_image = self.model.module.module['denoiser'].denoise(*input_data)
+            if hasattr(self.model['denoiser'].module, 'denoise'):
+                denoised_image = self.model['denoiser'].module.denoise(*input_data)
             else:
-                denoised_image = self.model.module.module['denoiser'](*input_data)
+                denoised_image = self.model['denoiser'].module(*input_data)
 
             # inverse normalize dataset (if normalization is on)
             if self.val_cfg['normalization']:
                 denoised_image = self.val_dataloader['dataset'].dataset.inverse_normalize(denoised_image, self.cfg['gpu'] != 'None')
                 data = self.val_dataloader['dataset'].dataset.inverse_normalize_data(data, self.cfg['gpu'] != 'None')
             
+            denoised_image += 0.5
+
             # evaluation
             if 'clean' in data:
                 psnr_value = psnr(denoised_image, data['clean'])
@@ -216,12 +220,12 @@ class Trainer(BasicTrainer):
 
                 # imwrite
                 if 'clean' in data:
-                    cv2.imwrite(os.path.join(img_save_path, '%04d_CL.png'%idx), tensor2np(clean_img+0.5))
-                cv2.imwrite(os.path.join(img_save_path, '%04d_N.png'%idx), tensor2np(noisy_img+0.5))
-                cv2.imwrite(os.path.join(img_save_path, denoi_name), tensor2np(denoi_img+0.5))
+                    self.file_manager.save_img_tensor(img_save_path, '%04d_CL.png'%idx, clean_img)
+                self.file_manager.save_img_tensor(img_save_path, '%04d_N.png'%idx, noisy_img)
+                self.file_manager.save_img_tensor(img_save_path, denoi_name, denoi_img)
 
             # print temporal msg
-            print('[%s] %04d/%04d evaluating...'%(status, idx, self.val_dataloader['dataset'].__len__()), end='\r')
+            self.logger.note('[%s] %04d/%04d evaluating...'%(status, idx, self.val_dataloader['dataset'].__len__()), end='\r')
 
         # info 
         if 'clean' in data:
@@ -253,8 +257,7 @@ class Trainer(BasicTrainer):
         losses, tmp_info = loss(input_data, model_output, data, module, \
                                     ratio=(self.epoch-1 + (self.iter-1)/self.max_iter)/self.max_epoch)
 
-        losses   = {key : losses[key].unsqueeze(-1) for key in losses}
-
-        tmp_info = {key : tmp_info[key].unsqueeze(-1) for key in tmp_info}
+        # losses   = {key : losses[key].unsqueeze(-1) for key in losses}
+        # tmp_info = {key : tmp_info[key].unsqueeze(-1) for key in tmp_info}
 
         return losses, tmp_info

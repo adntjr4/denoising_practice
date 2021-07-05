@@ -13,11 +13,11 @@ class Logger(ProgressMsg):
             max_iter (tuple) : max iteration for progress
             log_dir (str) : if None, no file out for logging
             log_file_option (str) : 'w' or 'a'
-            log_lvl (str) : 'debug' < 'info' < 'warning'
+            log_lvl (str) : 'debug' < 'note' < 'info' < 'highlight' < 'val'
             log_include_time (bool)
         '''
-        self.lvl_list = ['debug', 'info', 'highlight', 'val']
-        self.lvl_color = [bcolors.FAIL, None, bcolors.WARNING, bcolors.OKGREEN]
+        self.lvl_list = ['debug', 'note', 'info', 'highlight', 'val']
+        self.lvl_color = [bcolors.FAIL, None, None, bcolors.WARNING, bcolors.OKGREEN]
 
         assert log_file_option in ['w', 'a']
         assert log_lvl in self.lvl_list
@@ -37,49 +37,30 @@ class Logger(ProgressMsg):
             self.log_file = open(os.path.join(log_dir, 'log.log'), log_file_option)
             self.val_file = open(os.path.join(log_dir, 'validation.log'), log_file_option)
 
-    def debug(self, txt):
+    def _print(self, txt, lvl_n, end):
         txt = str(txt)
-        lvl_n = self.lvl_list.index('debug')
         if self.log_lvl <= lvl_n:
             if self.lvl_color[lvl_n] is not None:
-                print('\033[K'+ self.lvl_color[lvl_n] + txt + bcolors.ENDC)
+                print('\033[K'+ self.lvl_color[lvl_n] + txt + bcolors.ENDC, end=end)
             else:
-                print('\033[K'+txt)
+                print('\033[K'+txt, end=end)
         if self.log_file_lvl <= lvl_n:
             self.write_file(txt)
 
-    def info(self, txt):
-        txt = str(txt)
-        lvl_n = self.lvl_list.index('info')
-        if self.log_lvl <= lvl_n:
-            if self.lvl_color[lvl_n] is not None:
-                print('\033[K'+ self.lvl_color[lvl_n] + txt + bcolors.ENDC)
-            else:
-                print('\033[K'+txt)
-        if self.log_file_lvl <= lvl_n:
-            self.write_file(txt)
+    def debug(self, txt, end=None):
+        self._print(txt, self.lvl_list.index('debug'), end)
+    
+    def note(self, txt, end=None):
+        self._print(txt, self.lvl_list.index('note'), end)
 
-    def highlight(self, txt):
-        txt = str(txt)
-        lvl_n = self.lvl_list.index('highlight')
-        if self.log_lvl <= lvl_n:
-            if self.lvl_color[lvl_n] is not None:
-                print('\033[K'+ self.lvl_color[lvl_n] + txt + bcolors.ENDC)
-            else:
-                print('\033[K'+txt)
-        if self.log_file_lvl <= lvl_n:
-            self.write_file(txt)
+    def info(self, txt, end=None):
+        self._print(txt, self.lvl_list.index('info'), end)
 
-    def val(self, txt):
-        txt = str(txt)
-        lvl_n = self.lvl_list.index('val')
-        if self.log_lvl <= lvl_n:
-            if self.lvl_color[lvl_n] is not None:
-                print('\033[K'+ self.lvl_color[lvl_n] + txt + bcolors.ENDC)
-            else:
-                print('\033[K'+txt)
-        if self.log_file_lvl <= lvl_n:
-            self.write_file(txt)
+    def highlight(self, txt, end=None):
+        self._print(txt, self.lvl_list.index('highlight'), end)
+
+    def val(self, txt, end=None):
+        self._print(txt, self.lvl_list.index('val'), end)
         if self.log_dir is not None:
             self.val_file.write(txt+'\n')
             self.val_file.flush()

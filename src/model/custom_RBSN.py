@@ -32,18 +32,19 @@ class RBSN(nn.Module):
         # self.mu_var_net = CNNest(in_ch=self.in_ch, out_ch=self.in_ch**2)
 
         self.nlf_net = CNNest(in_ch=self.in_ch, out_ch=self.in_ch)
-        self.nlf_est = NLFNet(real=True)
-
         self.avg_net_n_var = LocalMeanNet(self.in_ch, self.avg_size_n_var)
-        if self.nc: self.avg_net_nc = LocalMeanNet(self.in_ch, self.avg_size_nc)
+
+        if self.nc: 
+            self.nlf_est = NLFNet(real=True)
+            self.avg_net_nc = LocalMeanNet(self.in_ch, self.avg_size_nc)
 
     def forward(self, x):
         b,c,w,h = x.shape
 
         # noise correction
-        est_nlf = self.nlf_est(x)
         if self.nc:
-            x = self.clipping_correction(x, est_nlf)
+            est_nlf = self.nlf_est(x)
+            x = self.clipping_correction(x, est_nlf).detach()
 
         # PD
         pd_x = pixel_shuffle_down_sampling(x, f=self.pd, pad=self.pd_pad)
@@ -63,7 +64,7 @@ class RBSN(nn.Module):
         n_var = self.make_diag_covar_form(n_var)
 
         return x_mean, mu_var, n_var
-    
+
     def denoise(self, x):
         '''
         inferencing function for denoising.

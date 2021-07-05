@@ -6,18 +6,19 @@ model:
     eval_mu: False
     noise_correction: True
 
-model_input: [masked] # e.g.) real_noisy, syn_noisy, masked, clean
+model_input: [real_noisy] # e.g.) real_noisy, syn_noisy, masked, clean
 
 trainer: Trainer
 
 training:
   dataset: prep_SIDD
   add_noise: None # e.g.) None bypass uni-15. gau-15. gau_blind-10.:50. het_gau-10.:50. see more detail in denoise_dataset.py
-  mask: bypass # e.g.) None bypass stf_0.7-rnd
+  mask: None # e.g.) None bypass stf_0.7-rnd
   crop_size: [256, 256]
   aug: ['hflip', 'rot']
   normalization: False
   n_repeat: 1
+  n_data: 64
   
   batch_size: 4
 

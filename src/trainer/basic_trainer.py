@@ -1,4 +1,6 @@
-import os, math
+import os
+import math
+import time
 
 import cv2
 import numpy as np
@@ -9,14 +11,14 @@ from torch.utils.data import DataLoader
 
 from ..loss.loss import Loss
 from ..datahandler import get_dataset_object
-from ..util.output import Output
+from ..util.file_manager import FileManager
 from ..util.logger import Logger
 from ..util.util import human_format, rot_hflip_img
 
 
 status_len = 13
 
-class BasicTrainer(Output):
+class BasicTrainer():
     def test(self):
         raise NotImplementedError('define this function for each trainer')
     def validation(self):
@@ -39,8 +41,9 @@ class BasicTrainer(Output):
 
         self.checkpoint_folder = 'checkpoint'
 
-        dir_list = ['checkpoint', 'img', 'tboard']
-        super().__init__(self.session_name, dir_list)
+        # this handles i/o include printing, file save
+        self.file_manager = FileManager(self.session_name)
+        self.logger = Logger()
         
         self.cfg = cfg
         self.train_cfg = cfg['training']
@@ -96,41 +99,19 @@ class BasicTrainer(Output):
         # test dataset loader
         self.test_dataloader = self._set_dataloader(self.test_cfg, batch_size=1, shuffle=False, num_workers=self.cfg['thread'])
 
-        # logger
-        self.logger = Logger()
-
         # wrapping and device setting
-        self.loss = None
-        self._wrapping_model_loss()
         if self.cfg['gpu'] != 'None':
             # model to GPU
-            self.model = nn.DataParallel(self.model_loss).cuda()
+            self.model = {key: nn.DataParallel(self.module[key]).cuda() for key in self.module}
         else:
-            self.model = nn.DataParallel(self.model_loss)
+            self.model = {key: nn.DataParallel(self.module[key]) for key in self.module}
 
         # start message
         self.logger.highlight(self.logger.get_start_msg())
-
-    def _wrapping_model_loss(self):
-        '''
-        wrapping model and loss together as single nn.Module
-        (if only model is used with DataParallel, there is an overhead on calculating loss.)
-        '''
-        class WrappedModelLoss(nn.Module):
-            def __init__(self, module, loss, forward_fn):
-                super().__init__()
-                self.module     = nn.ModuleDict(module)
-                self.loss       = loss
-                self.forward_fn = forward_fn
-            def forward(self, data):
-                # return output of loss
-                return self.forward_fn(self.module, self.loss, data)
-        
-        self.model_loss = WrappedModelLoss(self.module, self.loss, self._forward_fn)
             
     def _before_train(self):
         # cudnn
-        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.benchmark = False
 
         # initialing
         self.module = self._set_module()
@@ -168,16 +149,15 @@ class BasicTrainer(Output):
             self.epoch = load_epoch+1
 
             # logger initialization
-            self.logger = Logger((self.max_epoch, self.max_iter), log_dir=self.get_dir(''), log_file_option='a')
+            self.logger = Logger((self.max_epoch, self.max_iter), log_dir=self.file_manager.get_dir(''), log_file_option='a')
         else:
             # logger initialization
-            self.logger = Logger((self.max_epoch, self.max_iter), log_dir=self.get_dir(''), log_file_option='w')
+            self.logger = Logger((self.max_epoch, self.max_iter), log_dir=self.file_manager.get_dir(''), log_file_option='w')
 
         # wrapping and device setting
-        self._wrapping_model_loss()
         if self.cfg['gpu'] != 'None':
             # model to GPU
-            self.model = nn.DataParallel(self.model_loss).cuda()
+            self.model = {key: nn.DataParallel(self.module[key]).cuda() for key in self.module}
             # optimizer to GPU
             for optim in self.optimizer.values():
                 for state in optim.state.values():
@@ -185,7 +165,7 @@ class BasicTrainer(Output):
                         if isinstance(v, torch.Tensor):
                             state[k] = v.cuda()
         else:
-            self.model = nn.DataParallel(self.model_loss)
+            self.model = {key: nn.DataParallel(self.module[key]) for key in self.module}
 
         # start message
         self.logger.info(self.summary())
@@ -205,7 +185,8 @@ class BasicTrainer(Output):
             self.train_dataloader_iter[key] = iter(self.train_dataloader[key])
 
         # model training mode
-        self.model.train()
+        for key in self.model:
+            self.model[key].train()
 
     def _run_epoch(self):
         for self.iter in range(1, self.max_iter+1):
@@ -244,11 +225,9 @@ class BasicTrainer(Output):
                     data[dataset_key][key] = data[dataset_key][key].cuda()
 
         # forward, cal losses, backward)
-        losses, tmp_info = self.model(data)
+        losses, tmp_info = self._forward_fn(self.model, self.loss, data)
         losses   = {key: losses[key].mean()   for key in losses}
         tmp_info = {key: tmp_info[key].mean() for key in tmp_info}
-
-        #print(losses)
 
         # backward
         total_loss = sum(v for v in losses.values()).mean()
@@ -337,12 +316,12 @@ class BasicTrainer(Output):
     def save_checkpoint(self):
         checkpoint_name = self._checkpoint_name(self.epoch)
         torch.save({'epoch': self.epoch,
-                    'model_weight': {key:self.model.module.module[key].state_dict() for key in self.model.module.module},
+                    'model_weight': {key:self.model[key].module.state_dict() for key in self.model},
                     'optimizer_weight': {key:self.optimizer[key].state_dict() for key in self.optimizer}},
-                    os.path.join(self.get_dir(self.checkpoint_folder), checkpoint_name))
+                    os.path.join(self.file_manager.get_dir(self.checkpoint_folder), checkpoint_name))
 
     def load_checkpoint(self, load_epoch): 
-        file_name = os.path.join(self.get_dir(self.checkpoint_folder), self._checkpoint_name(load_epoch))
+        file_name = os.path.join(self.file_manager.get_dir(self.checkpoint_folder), self._checkpoint_name(load_epoch))
         assert os.path.isfile(file_name), 'there is no checkpoint: %s'%file_name
         saved_checkpoint = torch.load(file_name)
         self.epoch = saved_checkpoint['epoch']
@@ -356,7 +335,7 @@ class BasicTrainer(Output):
         return self.session_name + '_%03d'%epoch + '.pth'
 
     def _find_last_epoch(self):
-        checkpoint_list = os.listdir(self.get_dir(self.checkpoint_folder))
+        checkpoint_list = os.listdir(self.file_manager.get_dir(self.checkpoint_folder))
         epochs = [int(ckpt.replace('%s_'%self.session_name, '').replace('.pth', '')) for ckpt in checkpoint_list]
         assert len(epochs) > 0, 'There is no resumable checkpoint on session %s.'%self.session_name
         return max(epochs)

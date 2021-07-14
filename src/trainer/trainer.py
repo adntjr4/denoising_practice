@@ -42,7 +42,8 @@ class Trainer(BasicTrainer):
 
         # validation
         psnr_sum = 0.
-        psnr_count = 0
+        ssim_sum = 0.
+        count = 0
         for idx, data in enumerate(self.test_dataloader['dataset']):
             # to device
             if self.cfg['gpu'] != 'None':
@@ -74,8 +75,12 @@ class Trainer(BasicTrainer):
             denoised_image += 0.5
             if 'clean' in data:
                 psnr_value = psnr(denoised_image, data['clean'])
+                ssim_value = ssim(denoised_image, data['clean'])
+
                 psnr_sum += psnr_value
-                psnr_count += 1
+                ssim_sum += ssim_value
+
+                count += 1
 
             # image save
             if self.test_cfg['save_image']:
@@ -105,7 +110,7 @@ class Trainer(BasicTrainer):
         # info 
         status = (' test %03d '%self.epoch).ljust(status_len) #.center(status_len)
         if 'clean' in data:
-            self.logger.val('[%s] Done! PSNR : %.2f dB'%(status, psnr_sum/psnr_count))
+            self.logger.val('[%s] Done! PSNR : %.2f dB, SSIM : %.3f'%(status, psnr_sum/count, ssim_sum/count))
         else:
             self.logger.val('[%s] Done!'%status)
 
@@ -182,7 +187,8 @@ class Trainer(BasicTrainer):
 
         # validation
         psnr_sum = 0.
-        psnr_count = 0
+        ssim_sum = 0.
+        count = 0
         for idx, data in enumerate(self.val_dataloader['dataset']):
             # to device
             if self.cfg['gpu'] != 'None':
@@ -206,8 +212,12 @@ class Trainer(BasicTrainer):
             # evaluation
             if 'clean' in data:
                 psnr_value = psnr(denoised_image, data['clean'])
+                ssim_value = ssim(denoised_image, data['clean'])
+
                 psnr_sum += psnr_value
-                psnr_count += 1
+                ssim_sum += ssim_value
+
+                count += 1
 
             # image save
             if self.val_cfg['save_image']:
@@ -232,7 +242,7 @@ class Trainer(BasicTrainer):
 
         # info 
         if 'clean' in data:
-            self.logger.val('[%s] Done! PSNR : %.2f dB'%(status, psnr_sum/psnr_count))
+            self.logger.val('[%s] Done! PSNR : %.2f dB, SSIM : %.3f'%(status, psnr_sum/count, ssim_sum/count))
         else:
             self.logger.val('[%s] Done!'%status)
 

@@ -9,10 +9,9 @@ from . import loss_class_dict
 
 
 class Loss(nn.Module):
-    def __init__(self, loss_string, tmp_info_string):
+    def __init__(self, loss_string, tmp_info):
         super().__init__()
         loss_string     = loss_string.replace(' ', '')
-        tmp_info_string = tmp_info_string.replace(' ', '')
 
         # parse loss string
         self.loss_list = []
@@ -31,7 +30,7 @@ class Loss(nn.Module):
             
         # parse temporal information string
         self.tmp_info_list = []
-        for name in tmp_info_string.split(','):
+        for name in tmp_info:
             if name in loss_class_dict:
                 self.tmp_info_list.append({ 'name': name,
                                             'func': loss_class_dict[name]()})

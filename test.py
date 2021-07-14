@@ -3,7 +3,7 @@ import argparse, os
 import torch
 
 from src.util.config_parse import ConfigParser
-from src.trainer.trainer import Trainer
+from src.trainer import trainer_dict
 
 
 def main():
@@ -15,6 +15,7 @@ def main():
     args.add_argument('--gpu',          default=None,  type=str)
     args.add_argument('--thread',       default=4,     type=int)
     args.add_argument('--self_en',      default=False, type=bool)
+    args.add_argument('--repeat',       default=1,     type=int)
 
     args = args.parse_args()
 

@@ -18,7 +18,6 @@ training:
   aug: ['hflip', 'rot']
   normalization: False
   n_repeat: 1
-  n_data: 64
   
   batch_size: 4
 

@@ -5,7 +5,7 @@ from torch._C import has_cuda
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..util.util import pixel_shuffle_down_sampling, pixel_shuffle_up_sampling
+from ..util.util import pixel_shuffle_down_sampling, pixel_shuffle_up_sampling, random_PD_down, random_PD_up
 from . import regist_model, get_model_object
 from .DBSN import DBSN
 
@@ -47,13 +47,15 @@ class RBSN(nn.Module):
             x = self.clipping_correction(x, est_nlf).detach()
 
         # PD
-        pd_x = pixel_shuffle_down_sampling(x, f=self.pd, pad=self.pd_pad)
+        # pd_x = pixel_shuffle_down_sampling(x, f=self.pd, pad=self.pd_pad)
+        pd_x, indice = random_PD_down(x, f=self.pd, pad=self.pd_pad)
         
         # forward blind-spot network
         pd_x_mean = self.bsn(pd_x)
         
         # inverse PD
-        x_mean = pixel_shuffle_up_sampling(pd_x_mean, f=self.pd, pad=self.pd_pad)
+        # x_mean = pixel_shuffle_up_sampling(pd_x_mean, f=self.pd, pad=self.pd_pad)
+        x_mean = random_PD_up(pd_x_mean, indice, f=self.pd, pad=self.pd_pad)
 
         # forward mu_var, n_var network
         mu_var = self.mu_var_net(x_mean.detach())
@@ -123,6 +125,74 @@ class RBSN(nn.Module):
         diag = diag.permute(0,2,3,1)       # b,w,h,c
         diag = torch.diag_embed(diag)   # b,w,h,c,c
         return diag.permute(0,3,4,1,2)
+
+    def clipping_correction(self, x, nlf):
+        '''
+        clipping correction
+        '''
+        b,_,_,_ = x.shape
+        nlf = nlf.view(b,-1).mean(-1)
+        mean = self.avg_net_nc(x)
+        b,c,w,h = x.shape
+        for c_idx in range(c):
+            x[:,c_idx] -= (nlf.view(b,1,1)*torch.abs_(torch.randn((b,w,h), device=x.device)) - mean[:,c_idx]) * (x[:,c_idx]<1.0)
+        return x
+
+@regist_model
+class RBSNmu(nn.Module):
+    def __init__(self, pd=4, pd_pad=0, noise_correction=False, eval_shift=True, eval_repeat=1):
+        super().__init__()
+
+        self.in_ch   = 3
+        self.avg_size_nc = 9
+
+
+        self.pd      = pd
+        self.pd_pad  = pd_pad
+        self.nc      = noise_correction
+
+        self.eval_shift  = eval_shift
+        self.eval_repeat = eval_repeat
+
+        self.bsn = DBSN(in_ch=self.in_ch, out_ch=self.in_ch)
+
+        if self.nc: 
+            self.nlf_est = NLFNet(real=True)
+            self.avg_net_nc = LocalMeanNet(self.in_ch, self.avg_size_nc)
+
+    def forward(self, x):
+        # noise correction
+        if self.nc:
+            est_nlf = self.nlf_est(x)
+            x = self.clipping_correction(x, est_nlf).detach()
+
+        # PD
+        # pd_x = pixel_shuffle_down_sampling(x, f=self.pd, pad=self.pd_pad)
+        pd_x, indice = random_PD_down(x, f=self.pd, pad=self.pd_pad)
+        
+        # forward blind-spot network
+        pd_x_mean = self.bsn(pd_x)
+        
+        # inverse PD
+        # x_mean = pixel_shuffle_up_sampling(pd_x_mean, f=self.pd, pad=self.pd_pad)
+        x_mean = random_PD_up(pd_x_mean, indice, f=self.pd, pad=self.pd_pad)
+
+        return x_mean
+
+    def denoise(self, x):
+        results = 0.
+        tot_num = 0
+        for i in range(self.eval_repeat):
+            if self.eval_shift:
+                for shift in range(self.pd):
+                    pad_x = F.pad(x, (shift, self.pd-shift, shift, self.pd-shift), mode='reflect')
+                    results += self.forward(pad_x)[:,:, shift:-self.pd+shift, shift:-self.pd+shift]
+                    tot_num += 1
+            else:
+                results += self.forward(x)
+                tot_num += 1
+
+        return results / tot_num
 
     def clipping_correction(self, x, nlf):
         '''

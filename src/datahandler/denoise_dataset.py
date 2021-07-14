@@ -158,8 +158,7 @@ class DenoiseDataSet(Dataset):
                 img = np.transpose(img, (2,0,1))
         else:
             img = np.expand_dims(img, axis=0)
-        img = torch.Tensor(img.copy())
-        return img
+        return torch.from_numpy(np.ascontiguousarray(img)).float()
 
     def _pre_processing(self, data):
         C, H, W = data['clean'].shape if 'clean' in data else data['real_noisy'].shape

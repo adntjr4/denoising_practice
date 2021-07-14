@@ -23,6 +23,18 @@ class self_L1():
         return F.l1_loss(output, target_noisy)
 
 @regist_loss
+class self_L1_1():
+    def __call__(self, input_data, model_output, data, module):
+        if type(model_output) is tuple: 
+            output = model_output[1]
+        else: 
+            output = model_output
+
+        target_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
+
+        return F.l1_loss(output, target_noisy)       
+
+@regist_loss
 class self_L2():
     def __call__(self, input_data, model_output, data, module):
         if type(model_output) is tuple: 

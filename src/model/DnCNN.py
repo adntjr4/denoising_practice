@@ -10,13 +10,13 @@ Ref : https://github.com/cszn/KAIR
 
 @regist_model
 class DnCNN(nn.Module):
-    def __init__(self, in_ch=1, out_ch=1, base_ch=64, n_layer=17):
+    def __init__(self, in_ch=1, base_ch=64, n_layer=17):
         super().__init__()
         bias = True
 
         head = Block(in_ch, base_ch, kernel_size=3, bn=True, act='ReLU', bias=bias)
         body = [Block(base_ch, base_ch, kernel_size=3, bn=True, act='ReLU', bias=bias) for _ in range(n_layer-2)]
-        tail = Block(base_ch, out_ch, kernel_size=3, bn=False, act=None, bias=bias)
+        tail = Block(base_ch, in_ch, kernel_size=3, bn=False, act=None, bias=bias)
 
         self.model = nn.Sequential(head, *body, tail)
 
@@ -59,8 +59,8 @@ class Block(nn.Module):
 
 @regist_model
 class DnCNN_B(DnCNN):
-    def __init__(self, in_ch=1, out_ch=1):
-        super().__init__(in_ch=in_ch, out_ch=out_ch, n_layer=20)
+    def __init__(self, in_ch=1):
+        super().__init__(in_ch=in_ch, n_layer=20)
 
 # ========
 

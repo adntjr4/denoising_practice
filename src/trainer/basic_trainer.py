@@ -303,11 +303,12 @@ class BasicTrainer():
                 self.loss_dict[key] = 0.
 
         # print temporal information
-        loss_out_str += '\t['
-        for key in self.tmp_info:
-            loss_out_str += '  %s : %.2f'%(key, self.tmp_info[key]/self.loss_dict['count'])
-            self.tmp_info[key] = 0.
-        loss_out_str += ' ]'
+        if len(self.tmp_info) > 0:
+            loss_out_str += '\t['
+            for key in self.tmp_info:
+                loss_out_str += '  %s : %.2f'%(key, self.tmp_info[key]/self.loss_dict['count'])
+                self.tmp_info[key] = 0.
+            loss_out_str += ' ]'
 
         # reset
         self.loss_dict['count'] = 0

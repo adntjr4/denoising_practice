@@ -57,11 +57,14 @@ class Trainer(BasicTrainer):
                 denoiser =  self.model['denoiser'].module
 
             # denoising w/ or w/o self ensemble
-            if self.cfg['self_en']:
-                denoised_image = self.self_ensemble(denoiser, *input_data)
-            else:
-                denoised_image = denoiser(*input_data)
+            if self.cfg['self_en']: denoiser = lambda x: self.self_ensemble(denoiser, x)
 
+            # repeat
+            denoised_image = 0.
+            for i in range(self.cfg['repeat']):
+                denoised_image += denoiser(*input_data)
+            denoised_image /= self.cfg['repeat']
+                
             # inverse normalize dataset (if normalization is on)
             if self.test_cfg['normalization']:
                 denoised_image = self.test_dataloader['dataset'].dataset.inverse_normalize(denoised_image, self.cfg['gpu'] != 'None')
@@ -84,12 +87,12 @@ class Trainer(BasicTrainer):
                 denoi_img = denoised_image.squeeze().cpu()
 
                 # write psnr value on file name
-                denoi_name = '%04d_DN_%.2f.png'%(idx, psnr_value) if 'clean' in data else '%04d_DN.png'%idx
+                denoi_name = '%04d_DN_%.2f'%(idx, psnr_value) if 'clean' in data else '%04d_DN'%idx
 
                 # imwrite
                 if 'clean' in data:
-                    self.file_manager.save_img_tensor(img_save_path, '%04d_CL.png'%idx, clean_img)
-                self.file_manager.save_img_tensor(img_save_path, '%04d_N.png'%idx, noisy_img)
+                    self.file_manager.save_img_tensor(img_save_path, '%04d_CL'%idx, clean_img)
+                self.file_manager.save_img_tensor(img_save_path, '%04d_N'%idx, noisy_img)
                 self.file_manager.save_img_tensor(img_save_path, denoi_name, denoi_img)
 
             # logger msg
@@ -152,8 +155,8 @@ class Trainer(BasicTrainer):
 
             # image save
             if self.test_cfg['save_image']:
-                self.file_manager.save_img_numpy(img_save_path, '%04d_N.png'%idx,  255*Inoisy)
-                self.file_manager.save_img_numpy(img_save_path, '%04d_DN.png'%idx, denoised)
+                self.file_manager.save_img_numpy(img_save_path, '%04d_N'%idx,  255*Inoisy)
+                self.file_manager.save_img_numpy(img_save_path, '%04d_DN'%idx, denoised)
 
             return denoised / 255
 
@@ -216,12 +219,12 @@ class Trainer(BasicTrainer):
                 denoi_img = denoised_image.squeeze().cpu()
 
                 # write psnr value on file name
-                denoi_name = '%04d_DN_%.2f.png'%(idx, psnr_value) if 'clean' in data else '%04d_DN.png'%idx
+                denoi_name = '%04d_DN_%.2f'%(idx, psnr_value) if 'clean' in data else '%04d_DN'%idx
 
                 # imwrite
                 if 'clean' in data:
-                    self.file_manager.save_img_tensor(img_save_path, '%04d_CL.png'%idx, clean_img)
-                self.file_manager.save_img_tensor(img_save_path, '%04d_N.png'%idx, noisy_img)
+                    self.file_manager.save_img_tensor(img_save_path, '%04d_CL'%idx, clean_img)
+                self.file_manager.save_img_tensor(img_save_path, '%04d_N'%idx, noisy_img)
                 self.file_manager.save_img_tensor(img_save_path, denoi_name, denoi_img)
 
             # print temporal msg
@@ -237,7 +240,10 @@ class Trainer(BasicTrainer):
 
     def _set_module(self):
         module = {}
-        module['denoiser'] = get_model_object(self.cfg['model']['type'])(**self.cfg['model']['kwargs'])
+        if self.cfg['model']['kwargs'] is None:
+            module['denoiser'] = get_model_object(self.cfg['model']['type'])()
+        else:   
+            module['denoiser'] = get_model_object(self.cfg['model']['type'])(**self.cfg['model']['kwargs'])
         return module
         
     def _set_optimizer(self):

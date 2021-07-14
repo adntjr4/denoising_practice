@@ -65,7 +65,7 @@ log:
   interval_iter: 10
 
 test:
-  dataset: SIDD_benchmark
+  dataset: SIDD_val
   crop_size: None # [64, 64]
   add_noise: None # e.g.) None uni-15. gau-15. gau_blind-10.:50. poi_gau-10.:50.
   mask: None # e.g.) None bypass stf_64-rnd

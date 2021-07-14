@@ -28,7 +28,7 @@ training:
     step:
       step_size: 8
       gamma: 0.464
-  loss: 1*L1
+  loss: 1*SSIM
   tmp_info: []
   optimizer:
     type: Adam

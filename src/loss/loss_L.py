@@ -4,6 +4,8 @@ import torch.nn.functional as F
 import torchvision
 
 from . import regist_loss
+from ..util.pytorch_msssim import ssim, msssim
+
 
 @regist_loss
 class L1():
@@ -18,6 +20,20 @@ class L2():
         if type(model_output) is tuple: output = model_output[0]
         else: output = model_output
         return F.mse_loss(output, data['clean'])
+
+@regist_loss
+class SSIM():
+    def __call__(self, input_data, model_output, data, module):
+        if type(model_output) is tuple: output = model_output[0]
+        else: output = model_output
+        return 1-ssim(output, data['clean'])
+
+@regist_loss
+class MSSSIM():
+    def __call__(self, input_data, model_output, data, module):
+        if type(model_output) is tuple: output = model_output[0]
+        else: output = model_output
+        return 1-msssim(output, data['clean'])
 
 @regist_loss
 class VGG22(nn.Module):

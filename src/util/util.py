@@ -33,6 +33,9 @@ def tensor2np(t:torch.Tensor):
     # RGB -> BGR
     elif len(t.shape) == 3:
         return np.flip(t.cpu().permute(1,2,0).numpy(), axis=2)
+    # image batch
+    elif len(t.shape) == 4:
+        return np.flip(t.cpu().permute(0,2,3,1).numpy(), axis=3)
     else:
         raise RuntimeError('wrong tensor dimensions : %s'%(t.shape,))
 
@@ -223,36 +226,42 @@ def human_format(num):
         num/=1000.0
     return '%.1f%s'%(num,['','K','M','G','T','P'][magnitude])
 
-def psnr(true_img, test_img):
-    '''
-    image value range : [0 - 255]
-    clipping for model output
-    '''
-    # tensor to numpy
-    if isinstance(true_img, torch.Tensor):
-        true_img = true_img.detach().cpu().numpy()
-    if isinstance(test_img, torch.Tensor):
-        test_img = test_img.detach().cpu().numpy()
-
-    # numpy value cliping & chnage type to uint8
-    true_img = np.clip(true_img, 0, 255).astype(np.uint8)
-    test_img = np.clip(test_img, 0, 255).astype(np.uint8)
-
-    return peak_signal_noise_ratio(true_img, test_img)
-
-def ssim(img1, img2, **kargs):
+def psnr(img1, img2):
     '''
     image value range : [0 - 255]
     clipping for model output
     '''
     # tensor to numpy
     if isinstance(img1, torch.Tensor):
-        img1 = img1.detach().cpu().numpy()
+        img1 = tensor2np(img1)
     if isinstance(img2, torch.Tensor):
-        img2 = img2.detach().cpu().numpy()
+        img2 = tensor2np(img2)
+
+    # numpy value cliping & chnage type to uint8
+    img1 = np.clip(img1, 0, 255).astype(np.uint8)
+    img2 = np.clip(img2, 0, 255).astype(np.uint8)
+
+    return peak_signal_noise_ratio(img1, img2)
+
+def ssim(img1, img2):
+    '''
+    image value range : [0 - 255]
+    clipping for model output
+    '''
+    def remove_batch_demension(img):
+        assert len(img.shape) == 4
+        return img[0]
+    def any2np(img):
+        if isinstance(img, torch.Tensor):
+            img = tensor2np(img)
+        return img
+
+    # convert to single image, tensor to numpy
+    img1 = any2np(remove_batch_demension(img1))
+    img2 = any2np(remove_batch_demension(img2))
 
     # numpy value cliping
     img1 = np.clip(img1, 0, 255).astype(np.uint8)
     img2 = np.clip(img2, 0, 255).astype(np.uint8)
 
-    return structural_similarity(img1, img2, **kargs)
+    return structural_similarity(img1, img2, multichannel=True)

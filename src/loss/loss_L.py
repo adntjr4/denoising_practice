@@ -67,7 +67,7 @@ class VGG54(nn.Module):
         vgg2 = self.vgg(img2)
         return F.mse_loss(vgg1, vgg2)
 
-def ssim(img1, img2, sigma=1.5, include_cs=False):
+def ssim(img1, img2, sigma=3.0, include_cs=False):
     '''
     return custom ssim using gaussian kernel
     Args:

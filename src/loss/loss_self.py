@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from . import regist_loss
+from ..util.util import mean_conv2d, variance_conv2d, get_gaussian_2d_filter
 
 eps = 1e-6
 
@@ -58,11 +59,49 @@ class self_huber():
 
         return F.smooth_l1_loss(output, target_noisy, beta=1)
 
-
 @regist_loss
 class self_ssim():
     def __call__(self, input_data, model_output, data, module):
-        raise RuntimeError('ssim loss is not supported now.')
+        '''
+        denoised = model_output
+        '''
+        # hyper-parameters
+        C1 = (0.01*255) ** 2
+        C2 = (0.03*255) ** 2
+        window_size = 11
+        sigma = 3.0
+
+        # extract needed data
+        denoised = model_output
+        real_noisy = data['syn_noisy'] if 'syn_noisy' in data else data['real_noisy']
+        nlf_map = nlf_est(real_noisy, window_size=window_size, filter_type='gau', sigma=sigma)
+        noise_map = real_noisy-denoised
+
+        # get gaussian kernel
+        window = get_gaussian_2d_filter(window_size, sigma, channel=real_noisy.shape[1]).to(real_noisy.device)
+
+        # calculate mean and variance of each image
+        mu_y = mean_conv2d(real_noisy, window=window, padd=False)
+        mu_x = mean_conv2d(denoised, window=window, padd=False)
+        mu_n = mean_conv2d(noise_map, window=window, padd=False)
+        mu_y_mu_x = mu_y*mu_x
+
+        sigma_y_sq = variance_conv2d(real_noisy, window=window, padd=False)
+        sigma_x_sq = variance_conv2d(denoised, window=window, padd=False)
+
+        nlf_map = nlf_map.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(sigma_y_sq.shape)
+        sigma_y_n_sq = F.relu(sigma_y_sq - nlf_map.pow(2), inplace=True)
+
+        sigma_yx = mean_conv2d(real_noisy * denoised, window=window, padd=False) - mu_y_mu_x
+        sigma_nx = mean_conv2d(noise_map * denoised, window=window, padd=False) - mu_n*mu_x
+
+        # calculate SSIM
+        v1 = 2 * sigma_yx + C2
+        v2 = sigma_y_n_sq + sigma_x_sq + C2
+        ssim_map = ((2 * mu_y_mu_x + C1) * v1) / ((mu_y.pow(2) + mu_x.pow(2) + C1) * v2)
+
+        # return SSIM + sigma_nx
+        return (1-ssim_map.mean((1,2,3)) + sigma_nx.pow(2).mean((1,2,3))).mean()
 
 # =================== #
 #       MAP loss      #
@@ -405,3 +444,32 @@ class mu_singular():
         _, s, _ = torch.svd(mu_var)
 
         return s[:,:,:,0].mean()
+
+
+
+# =================== #
+#    util functions   #
+# =================== #
+
+def nlf_est(x, real=True, window_size=11, filter_type='gau', sigma=3., gamma=0.5):
+    b,c,w,h = x.shape
+
+    def do_var(x):
+        return variance_conv2d(x, window_size, filter_type=filter_type, sigma=sigma, padd=False)
+
+    alpha_map = do_var(x).sum(1, keepdim=True)/3
+    beta_map = do_var(x.sum(1, keepdim=True)/3) 
+
+    weight = do_var(x-x[:, [2,1,0]]).sum(1, keepdim=True)/3
+    w_sum = torch.clamp(weight.sum((-1,-2,-3)), eps)
+    weight = torch.exp(-gamma * w*h * weight / w_sum.view(b,1,1,1))
+    w_sum = torch.clamp(weight.sum((-1,-2,-3)), eps)
+
+    if real:
+        nlf = 9/4*(weight*(alpha_map-beta_map)).sum((-1,-2,-3)) / w_sum
+        nlf = torch.nan_to_num(nlf, nan=eps)
+        return torch.sqrt(torch.clamp(nlf, eps))
+    else:
+        nlf = 3/2*(weight*(alpha_map-beta_map)).sum((-1,-2,-3)) / w_sum
+        nlf = torch.nan_to_num(nlf, nan=eps)
+        return torch.sqrt(torch.clamp(nlf, eps))

@@ -275,7 +275,10 @@ def get_gaussian_2d_filter(window_size, sigma, channel=1, device=torch.device('c
         window_size : filter window size
         sigma : standard deviation
     '''
-    gauss = torch.Tensor([exp(-(x - window_size//2)**2/float(2*sigma**2)) for x in range(window_size)], device=device).unsqueeze(1)
+    gauss = torch.ones(window_size, device=device)
+    for x in range(window_size): gauss[x] = exp(-(x - window_size//2)**2/float(2*sigma**2))
+    gauss = gauss.unsqueeze(1)
+    #gauss = torch.Tensor([exp(-(x - window_size//2)**2/float(2*sigma**2)) for x in range(window_size)], device=device).unsqueeze(1)
     filter2d = gauss.mm(gauss.t()).float()
     filter2d = (filter2d/filter2d.sum()).unsqueeze(0).unsqueeze(0)
     return filter2d.expand(channel, 1, window_size, window_size)

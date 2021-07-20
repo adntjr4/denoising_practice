@@ -58,6 +58,12 @@ class self_huber():
 
         return F.smooth_l1_loss(output, target_noisy, beta=1)
 
+
+@regist_loss
+class self_ssim():
+    def __call__(self, input_data, model_output, data, module):
+        raise RuntimeError('ssim loss is not supported now.')
+
 # =================== #
 #       MAP loss      #
 # =================== #

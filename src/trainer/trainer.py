@@ -58,8 +58,12 @@ class Trainer(BasicTrainer):
                 denoiser =  self.model['denoiser'].module
 
             # denoising w/ or w/o self ensemble
-            if self.cfg['self_en']: denoiser = lambda x: self.self_ensemble(denoiser, x)
-
+            if self.cfg['self_en']:
+                denoiser_fn = denoiser
+                def self_wrap(x):
+                    return self.self_ensemble(denoiser_fn, x)
+                denoiser = self_wrap
+                
             # repeat
             denoised_image = 0.
             for i in range(self.cfg['repeat']):

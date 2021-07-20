@@ -1,3 +1,5 @@
+from math import exp
+
 import cv2
 import numpy as np
 import torch
@@ -265,3 +267,60 @@ def ssim(img1, img2):
     img2 = np.clip(img2, 0, 255).astype(np.uint8)
 
     return structural_similarity(img1, img2, multichannel=True)
+
+def get_gaussian_2d_filter(window_size, sigma, channel=1, device=torch.device('cpu')):
+    '''
+    return 2d gaussian filter window as tensor form
+    Arg:
+        window_size : filter window size
+        sigma : standard deviation
+    '''
+    gauss = torch.Tensor([exp(-(x - window_size//2)**2/float(2*sigma**2)) for x in range(window_size)], device=device).unsqueeze(1)
+    filter2d = gauss.mm(gauss.t()).float()
+    filter2d = (filter2d/filter2d.sum()).unsqueeze(0).unsqueeze(0)
+    return filter2d.expand(channel, 1, window_size, window_size)
+
+def get_mean_2d_filter(window_size, channel=1, device=torch.device('cpu')):
+    '''
+    return 2d mean filter as tensor form
+    Args:
+        window_size : filter window size
+    '''
+    window = torch.ones((window_size, window_size), device=device)
+    window = (window/window.sum()).unsqueeze(0).unsqueeze(0)
+    return window.expand(channel, 1, window_size, window_size)
+
+def mean_conv2d(x, window_size=None, window=None, filter_type='gau', sigma=1.0, padd=True):
+    '''
+    color channel-wise 2d mean or gaussian convolution
+    Args:
+        x : input image
+        window_size : filter window size
+        filter_type(opt) : 'gau' or 'mean'
+        sigma : standard deviation of gaussian filter
+    '''    
+    if window is None:
+        if filter_type == 'gau':
+            window = get_gaussian_2d_filter(window_size, sigma=sigma, channel=x.shape[1], device=x.device)
+        else:
+            window = get_mean_2d_filter(window_size, channel=x.shape[1], device=x.device)
+
+    padding = window.shape[2]//2 if padd else 0
+    return F.conv2d(x, window, padding=padding, groups=x.shape[1])
+
+def variance_conv2d(x, window_size=None, window=None, filter_type='gau', sigma=1.0, padd=True):
+    '''
+    calculate variance using mean filter(mean_conv2d)
+    '''
+    if window is None:
+        if filter_type == 'gau':
+            window = get_gaussian_2d_filter(window_size, sigma=sigma, channel=x.shape[1], device=x.device)
+        else:
+            window = get_mean_2d_filter(window_size, channel=x.shape[1], device=x.device)
+
+    mean = mean_conv2d(x, window=window, padd=padd)
+    return mean_conv2d(x.pow(2), window=window, padd=padd) - mean.pow(2)
+
+if __name__ == '__main__':
+    t = torch.randn(1,3,5,5).cuda()
+    print(mean_conv2d(t, window_size=3, filter_type='mean'))

@@ -67,7 +67,7 @@ class VGG54(nn.Module):
         vgg2 = self.vgg(img2)
         return F.mse_loss(vgg1, vgg2)
 
-def ssim(img1, img2, sigma=3.0, include_cs=False):
+def ssim(img1, img2, sigma=1.5, include_cs=False):
     '''
     return custom ssim using gaussian kernel
     Args:
@@ -87,7 +87,7 @@ def ssim(img1, img2, sigma=3.0, include_cs=False):
 
     # get gaussian kernel
     tmp = int(6*sigma)
-    window_size = tmp + (tmp+1)%2
+    window_size = max(tmp + (tmp+1)%2, 11)
     window = get_gaussian_2d_filter(window_size, sigma, channel=img1.shape[1]).to(img1.device)
 
     # calculate mean and variance of each image

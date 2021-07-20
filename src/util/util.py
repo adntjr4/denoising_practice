@@ -44,6 +44,9 @@ def tensor2np(t:torch.Tensor):
 def imwrite_test(t, name='test'):
     cv2.imwrite('./%s.png'%name, tensor2np(t.cpu()))
 
+def imread_tensor(name='test'):
+    return np2tensor(cv2.imread('./%s'%name))
+
 def rot_hflip_img(img:torch.Tensor, rot_times:int=0, hflip:int=0):
     '''
     rotate '90 x times degree' & horizontal flip image 

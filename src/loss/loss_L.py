@@ -87,7 +87,7 @@ def ssim(img1, img2, sigma=1.5, include_cs=False):
 
     # get gaussian kernel
     tmp = int(6*sigma)
-    window_size = tmp + tmp%2
+    window_size = tmp + (tmp+1)%2
     window = get_gaussian_2d_filter(window_size, sigma, channel=img1.shape[1]).to(img1.device)
 
     # calculate mean and variance of each image
